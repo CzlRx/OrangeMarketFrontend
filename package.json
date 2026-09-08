@@ -1,0 +1,27 @@
+{
+  "name": "orangemarketfrontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "橙子商城前端（React + Vite + TypeScript）",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "lucide-react": "^0.436.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.12.0"
+  }
+}
