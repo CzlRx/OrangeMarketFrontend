@@ -137,13 +137,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const code = payload?.code
   const message = payload?.message ?? ''
 
-  if (response.status === 401 || code === 401) {
+  if (response.status === 401 || code === 401 || code === 40100) {
     clearSession()
     redirectToLogin()
     throw new ApiError(message || '登录已过期，请重新登录', 401, 401)
   }
 
-  if (!response.ok || typeof code === 'number' || !payload) {
+  const businessFailed = typeof code === 'number' && code !== 0
+  if (!payload || !response.ok || businessFailed) {
     const status = response.status || 500
     throw new ApiError(message || `请求失败（HTTP ${status}）`, code ?? status, status)
   }
