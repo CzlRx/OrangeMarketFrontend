@@ -7,6 +7,7 @@ import { formatPrice } from '../lib/format'
 import { productImage } from '../lib/visuals'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
 
 export function FavoritesPage() {
@@ -47,6 +48,8 @@ export function FavoritesPage() {
 
   return (
     <div className="page favorites-page">
+      <Breadcrumb items={[{ label: '首页', to: '/' }, { label: '我的收藏' }]} />
+
       <div className="page-heading">
         <div>
           <h1>我的收藏</h1>

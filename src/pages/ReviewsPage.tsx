@@ -8,6 +8,7 @@ import { productImage } from '../lib/visuals'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
 import { ReviewStars } from '../components/ReviewStars'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
 
 interface Draft {
@@ -95,6 +96,8 @@ export function ReviewsPage() {
 
   return (
     <div className="page reviews-page">
+      <Breadcrumb items={[{ label: '首页', to: '/' }, { label: '待评价' }]} />
+
       <div className="page-heading">
         <div>
           <h1>待评价</h1>

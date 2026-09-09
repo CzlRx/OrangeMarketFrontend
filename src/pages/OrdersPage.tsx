@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ReceiptText } from 'lucide-react'
 import type { Order, OrderStatus } from '../types'
 import { orderApi } from '../lib/api'
@@ -8,16 +8,32 @@ import { productImage } from '../lib/visuals'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
 import { StatusPill } from '../components/StatusPill'
+import { ConfirmModal } from '../components/Modal'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
 
+type ConfirmAction =
+  | { type: 'cancel'; orderId: string }
+  | { type: 'receive'; orderId: string }
+  | null
+
 export function OrdersPage() {
-  const [status, setStatus] = useState<OrderStatus | ''>('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const statusParam = searchParams.get('status') ?? ''
+  const status = (ORDER_STATUS_TABS.some((tab) => tab.value === statusParam) ? statusParam : '') as OrderStatus | ''
+  const setStatus = (next: OrderStatus | '') => {
+    const params = new URLSearchParams(searchParams)
+    if (next) params.set('status', next)
+    else params.delete('status')
+    setSearchParams(params)
+  }
   const [orders, setOrders] = useState<Order[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [busyId, setBusyId] = useState('')
+  const [confirm, setConfirm] = useState<ConfirmAction>(null)
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -54,8 +70,8 @@ export function OrdersPage() {
   }
 
   const cancelOrder = async (orderId: string) => {
-    if (!window.confirm('确认取消该订单？')) return
     setBusyId(orderId)
+    setConfirm(null)
     try {
       await orderApi.cancel(orderId)
       toast('订单已取消')
@@ -68,8 +84,8 @@ export function OrdersPage() {
   }
 
   const receiveOrder = async (orderId: string) => {
-    if (!window.confirm('确认已收到商品？')) return
     setBusyId(orderId)
+    setConfirm(null)
     try {
       await orderApi.receive(orderId)
       toast('确认收货成功')
@@ -83,6 +99,8 @@ export function OrdersPage() {
 
   return (
     <div className="page orders-page">
+      <Breadcrumb items={[{ label: '首页', to: '/' }, { label: '我的订单' }]} />
+
       <div className="page-heading">
         <div>
           <h1>我的订单</h1>
@@ -136,7 +154,10 @@ export function OrdersPage() {
                         className="order-thumb"
                         title={item.productName}
                       >
-                        <img src={item.productImage || productImage({ id: item.productId, name: item.productName })} alt={item.productName} />
+                        <img
+                          src={item.productImage || productImage({ id: item.productId, name: item.productName })}
+                          alt={item.productName}
+                        />
                       </Link>
                     ))}
                   </div>
@@ -162,7 +183,7 @@ export function OrdersPage() {
                       <button
                         type="button"
                         className="button ghost small"
-                        onClick={() => cancelOrder(order.id)}
+                        onClick={() => setConfirm({ type: 'cancel', orderId: order.id })}
                         disabled={busyId === order.id}
                       >
                         取消订单
@@ -173,7 +194,7 @@ export function OrdersPage() {
                     <button
                       type="button"
                       className="button primary small"
-                      onClick={() => receiveOrder(order.id)}
+                      onClick={() => setConfirm({ type: 'receive', orderId: order.id })}
                       disabled={busyId === order.id}
                     >
                       确认收货
@@ -199,6 +220,26 @@ export function OrdersPage() {
           </div>
         </>
       )}
+
+      <ConfirmModal
+        open={confirm?.type === 'cancel'}
+        title="取消订单"
+        content="确认取消该订单吗？取消后无法恢复。"
+        confirmText="取消订单"
+        danger
+        loading={Boolean(confirm && busyId === confirm.orderId)}
+        onConfirm={() => confirm && cancelOrder(confirm.orderId)}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmModal
+        open={confirm?.type === 'receive'}
+        title="确认收货"
+        content="请确认已收到全部商品，确认后订单将进入待评价状态。"
+        confirmText="确认收货"
+        loading={Boolean(confirm && busyId === confirm.orderId)}
+        onConfirm={() => confirm && receiveOrder(confirm.orderId)}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }

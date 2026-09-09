@@ -8,6 +8,8 @@ import { productImage } from '../lib/visuals'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
 import { StatusPill } from '../components/StatusPill'
+import { ConfirmModal } from '../components/Modal'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
 
 export function OrderDetailPage() {
@@ -17,6 +19,7 @@ export function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [confirm, setConfirm] = useState<'cancel' | 'receive' | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -33,8 +36,8 @@ export function OrderDetailPage() {
   }, [load])
 
   const cancel = async () => {
-    if (!window.confirm('确认取消该订单？')) return
     setBusy(true)
+    setConfirm(null)
     try {
       await orderApi.cancel(orderId)
       toast('订单已取消')
@@ -47,8 +50,8 @@ export function OrderDetailPage() {
   }
 
   const receive = async () => {
-    if (!window.confirm('确认已收到商品？')) return
     setBusy(true)
+    setConfirm(null)
     try {
       await orderApi.receive(orderId)
       toast('确认收货成功')
@@ -65,6 +68,14 @@ export function OrderDetailPage() {
 
   return (
     <div className="page order-detail-page">
+      <Breadcrumb
+        items={[
+          { label: '首页', to: '/' },
+          { label: '我的订单', to: '/orders' },
+          { label: '订单详情' },
+        ]}
+      />
+
       <div className="page-heading">
         <div>
           <h1>订单详情</h1>
@@ -77,11 +88,11 @@ export function OrderDetailPage() {
         <div className="order-detail-main">
           <section className="detail-section">
             <div className="section-title">
-              <MapPin size={18} />
+              <MapPin size={17} />
               <h2>收货信息</h2>
             </div>
             <div className="address-card">
-              <strong>{order.address.receiver} {order.address.phone}</strong>
+              <strong>{order.address.receiver} · {order.address.phone}</strong>
               <p>
                 {order.address.province}
                 {order.address.city}
@@ -93,14 +104,17 @@ export function OrderDetailPage() {
 
           <section className="detail-section">
             <div className="section-title">
-              <Truck size={18} />
+              <Truck size={17} />
               <h2>商品清单</h2>
             </div>
             <div className="detail-items">
               {order.items.map((item) => (
                 <div className="detail-item" key={item.id || item.productId}>
                   <Link to={`/product/${item.productId}`}>
-                    <img src={item.productImage || productImage({ id: item.productId, name: item.productName })} alt={item.productName} />
+                    <img
+                      src={item.productImage || productImage({ id: item.productId, name: item.productName })}
+                      alt={item.productName}
+                    />
                   </Link>
                   <div>
                     <Link to={`/product/${item.productId}`}>{item.productName}</Link>
@@ -178,13 +192,13 @@ export function OrderDetailPage() {
                 >
                   去支付
                 </button>
-                <button type="button" className="button secondary" onClick={cancel} disabled={busy}>
+                <button type="button" className="button secondary" onClick={() => setConfirm('cancel')} disabled={busy}>
                   取消订单
                 </button>
               </>
             )}
             {order.status === 'pending_receipt' && (
-              <button type="button" className="button primary" onClick={receive} disabled={busy}>
+              <button type="button" className="button primary" onClick={() => setConfirm('receive')} disabled={busy}>
                 确认收货
               </button>
             )}
@@ -199,6 +213,26 @@ export function OrderDetailPage() {
           </div>
         </aside>
       </div>
+
+      <ConfirmModal
+        open={confirm === 'cancel'}
+        title="取消订单"
+        content="确认取消该订单吗？取消后无法恢复。"
+        confirmText="取消订单"
+        danger
+        loading={busy}
+        onConfirm={cancel}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmModal
+        open={confirm === 'receive'}
+        title="确认收货"
+        content="请确认已收到全部商品，确认后订单将进入待评价状态。"
+        confirmText="确认收货"
+        loading={busy}
+        onConfirm={receive}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   )
 }

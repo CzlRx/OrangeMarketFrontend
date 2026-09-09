@@ -4,6 +4,12 @@ export function formatPrice(value: number) {
   return `¥${value.toFixed(2)}`
 }
 
+/** 拆分价格便于分层排版：¥ + 整数 + 小数 */
+export function formatPriceParts(value: number) {
+  const [int, dec] = Math.abs(value).toFixed(2).split('.')
+  return { int, dec }
+}
+
 export function formatDateTime(value?: string) {
   if (!value) return '-'
   const date = new Date(value)

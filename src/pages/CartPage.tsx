@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CheckSquare, ShoppingBag, Square, Trash2 } from 'lucide-react'
-import type { Cart } from '../types'
-import { cartApi } from '../lib/api'
-import { formatPrice } from '../lib/format'
+import type { Cart, Product } from '../types'
+import { cartApi, productApi } from '../lib/api'
+import { formatPrice, formatPriceParts } from '../lib/format'
 import { productImage } from '../lib/visuals'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
 import { QuantityStepper } from '../components/QuantityStepper'
+import { ProductCard } from '../components/ProductCard'
+import { ConfirmModal } from '../components/Modal'
 import { useCart } from '../state/CartContext'
 import { useToast } from '../state/ToastContext'
 
@@ -15,6 +17,8 @@ export function CartPage() {
   const [cart, setCart] = useState<Cart | null>(null)
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [recommendations, setRecommendations] = useState<Product[]>([])
   const navigate = useNavigate()
   const { refreshCount } = useCart()
   const { toast } = useToast()
@@ -32,6 +36,13 @@ export function CartPage() {
   useEffect(() => {
     void load()
   }, [load])
+
+  useEffect(() => {
+    productApi
+      .list({ page: 1, pageSize: 8, sort: 'sales_desc' })
+      .then((data) => setRecommendations(data.list.slice(0, 4)))
+      .catch(() => undefined)
+  }, [])
 
   const updateItem = async (cartItemId: string, patch: { quantity?: number; selected?: boolean }) => {
     setBusyId(cartItemId)
@@ -52,6 +63,7 @@ export function CartPage() {
       await cartApi.deleteItem(cartItemId)
       await load()
       await refreshCount()
+      toast('已删除该商品')
     } catch (err) {
       toast(err instanceof Error ? err.message : '删除失败', 'error')
     } finally {
@@ -72,11 +84,13 @@ export function CartPage() {
   }
 
   const deleteSelected = async () => {
+    setConfirmClear(false)
     setBusyId('selected')
     try {
       await cartApi.deleteSelected()
       await load()
       await refreshCount()
+      toast('已删除选中商品')
     } catch (err) {
       toast(err instanceof Error ? err.message : '删除失败', 'error')
     } finally {
@@ -85,6 +99,8 @@ export function CartPage() {
   }
 
   const allSelected = cart?.items.length ? cart.items.every((item) => item.selected) : false
+  const hasSelected = Boolean(cart?.selectedCount)
+
   const checkout = () => {
     const ids = cart?.items.filter((item) => item.selected && item.product).map((item) => item.id)
     if (!ids?.length) {
@@ -101,19 +117,8 @@ export function CartPage() {
       <div className="page-heading">
         <div>
           <h1>购物车</h1>
-          <p>{cart?.items.length ? `${cart.items.length} 种商品` : '还没有商品'}</p>
+          <p>{cart?.items.length ? `共 ${cart.items.length} 种商品` : '还没有商品'}</p>
         </div>
-        {cart && cart.items.length > 0 && (
-          <button
-            type="button"
-            className="icon-text-button"
-            onClick={() => setSelection(!allSelected)}
-            disabled={busyId === 'selection'}
-          >
-            {allSelected ? <CheckSquare size={17} /> : <Square size={17} />}
-            {allSelected ? '取消全选' : '全选'}
-          </button>
-        )}
       </div>
 
       {!cart || cart.items.length === 0 ? (
@@ -129,9 +134,31 @@ export function CartPage() {
         />
       ) : (
         <div className="cart-layout">
-          <div className="cart-items">
+          <div className="cart-list">
+            <div className="cart-head">
+              <span className="col-check">
+                <button
+                  type="button"
+                  className={`check-button${allSelected ? ' checked' : ''}`}
+                  onClick={() => setSelection(!allSelected)}
+                  disabled={busyId === 'selection'}
+                  aria-label={allSelected ? '取消全选' : '全选'}
+                >
+                  {allSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                </button>
+                全选
+              </span>
+              <span className="col-goods">商品信息</span>
+              <span className="col-price">单价</span>
+              <span className="col-quantity">数量</span>
+              <span className="col-total">小计</span>
+              <span className="col-action">操作</span>
+            </div>
+
             {cart.items.map((item) => {
               const product = item.product
+              const price = item.effectivePrice ?? product?.price ?? 0
+              const { int, dec } = formatPriceParts(price)
               return (
                 <article className="cart-item" key={item.id}>
                   <button
@@ -141,28 +168,31 @@ export function CartPage() {
                     disabled={busyId === item.id}
                     aria-label={item.selected ? '取消选择' : '选择'}
                   >
-                    {item.selected ? <CheckSquare size={20} /> : <Square size={20} />}
+                    {item.selected ? <CheckSquare size={19} /> : <Square size={19} />}
                   </button>
+
                   {product && (
                     <Link to={`/product/${product.id}`} className="cart-thumb">
                       <img src={productImage(product)} alt={product.name} />
                     </Link>
                   )}
+
                   <div className="cart-item-info">
                     {product ? (
                       <>
                         <Link to={`/product/${product.id}`} className="cart-item-name">
                           {product.name}
                         </Link>
-                        <span className="cart-item-tags">
-                          {product.tags.slice(0, 2).map((tag) => (
-                            <i key={tag}>{tag}</i>
-                          ))}
+                        {product.tags.length > 0 && (
+                          <span className="cart-item-tags">
+                            {product.tags.slice(0, 2).map((tag) => (
+                              <i key={tag}>{tag}</i>
+                            ))}
+                          </span>
+                        )}
+                        <span className="cart-item-unit">
+                          运费 {item.shippingFee === 0 ? '包邮' : formatPrice(item.shippingFee ?? product.shippingFee)}
                         </span>
-                        <div className="cart-item-price">
-                          <strong>{formatPrice(item.effectivePrice ?? product.price)}</strong>
-                          <span>运费 {item.shippingFee === 0 ? '包邮' : formatPrice(item.shippingFee ?? product.shippingFee)}</span>
-                        </div>
                       </>
                     ) : (
                       <div className="cart-item-offline">
@@ -171,7 +201,15 @@ export function CartPage() {
                       </div>
                     )}
                   </div>
-                  <div className="cart-item-controls">
+
+                  <div className="cart-item-price">
+                    <strong>
+                      ¥{int}
+                      <span style={{ fontSize: '0.72em' }}>.{dec}</span>
+                    </strong>
+                  </div>
+
+                  <div className="cart-item-quantity">
                     {product && (
                       <QuantityStepper
                         value={item.quantity}
@@ -180,6 +218,13 @@ export function CartPage() {
                         disabled={busyId === item.id}
                       />
                     )}
+                  </div>
+
+                  <div className="cart-item-total">
+                    {formatPrice(price * item.quantity)}
+                  </div>
+
+                  <div className="cart-item-remove">
                     <button
                       type="button"
                       className="icon-button danger"
@@ -187,7 +232,7 @@ export function CartPage() {
                       disabled={busyId === item.id}
                       aria-label="删除"
                     >
-                      <Trash2 size={17} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                 </article>
@@ -195,8 +240,13 @@ export function CartPage() {
             })}
 
             <div className="cart-batch-actions">
-              <button type="button" className="icon-text-button" onClick={deleteSelected} disabled={busyId === 'selected'}>
-                <Trash2 size={16} />
+              <button
+                type="button"
+                className="icon-text-button danger"
+                onClick={() => setConfirmClear(true)}
+                disabled={!hasSelected || busyId === 'selected'}
+              >
+                <Trash2 size={15} />
                 删除选中商品
               </button>
             </div>
@@ -226,11 +276,41 @@ export function CartPage() {
               onClick={checkout}
               disabled={cart.selectedCount === 0}
             >
-              去结算
+              去结算（{cart.selectedCount}）
             </button>
           </aside>
         </div>
       )}
+
+      {recommendations.length > 0 && (
+        <section className="section-block">
+          <div className="section-heading">
+            <div>
+              <h2>猜你喜欢</h2>
+              <p className="sub">根据热销为你推荐</p>
+            </div>
+            <Link to="/catalog" className="section-more">
+              查看更多
+            </Link>
+          </div>
+          <div className="product-grid">
+            {recommendations.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <ConfirmModal
+        open={confirmClear}
+        title="删除选中商品"
+        content="确定删除所有已选中的商品吗？删除后不可恢复。"
+        confirmText="删除"
+        danger
+        loading={busyId === 'selected'}
+        onConfirm={deleteSelected}
+        onCancel={() => setConfirmClear(false)}
+      />
     </div>
   )
 }

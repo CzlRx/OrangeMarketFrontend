@@ -6,6 +6,7 @@ import { orderApi } from '../lib/api'
 import { formatDateTime, formatPrice, ORDER_STATUS_LABELS } from '../lib/format'
 import { LoadingState } from '../components/LoadingState'
 import { EmptyState } from '../components/EmptyState'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
 
 function useCountdown(target?: string) {
@@ -77,6 +78,14 @@ export function PaymentPage() {
 
   return (
     <div className="page payment-page">
+      <Breadcrumb
+        items={[
+          { label: '首页', to: '/' },
+          { label: '我的订单', to: '/orders' },
+          { label: '订单支付' },
+        ]}
+      />
+
       <div className="payment-panel">
         <div className={`payment-status ${paid ? 'success' : ''}`}>
           {paid ? <CheckCircle2 size={34} /> : <CreditCard size={34} />}
@@ -100,7 +109,7 @@ export function PaymentPage() {
           {order.paymentExpireAt && !paid && (
             <div className="summary-line countdown-line">
               <span>
-                <Clock3 size={16} />
+                <Clock3 size={15} />
                 支付剩余
               </span>
               <b className={remaining <= 300 ? 'urgent' : ''}>{formatDuration(remaining)}</b>

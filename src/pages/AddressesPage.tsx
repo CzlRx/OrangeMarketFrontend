@@ -5,6 +5,8 @@ import type { Address } from '../types'
 import { userApi } from '../lib/api'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
+import { ConfirmModal } from '../components/Modal'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
 
 interface AddressFormState {
@@ -33,6 +35,7 @@ export function AddressesPage() {
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<Address | null>(null)
   const { toast } = useToast()
 
   const load = useCallback(async () => {
@@ -97,7 +100,7 @@ export function AddressesPage() {
   }
 
   const removeAddress = async (addressId: string) => {
-    if (!window.confirm('确认删除该地址？')) return
+    setPendingDelete(null)
     try {
       await userApi.deleteAddress(addressId)
       toast('地址已删除')
@@ -121,6 +124,8 @@ export function AddressesPage() {
 
   return (
     <div className="page addresses-page">
+      <Breadcrumb items={[{ label: '首页', to: '/' }, { label: '收货地址' }]} />
+
       <div className="page-heading">
         <div>
           <h1>收货地址</h1>
@@ -175,7 +180,7 @@ export function AddressesPage() {
                   <button
                     type="button"
                     className="icon-text-button danger"
-                    onClick={() => removeAddress(address.id)}
+                    onClick={() => setPendingDelete(address)}
                   >
                     <Trash2 size={15} />
                     删除
@@ -240,6 +245,16 @@ export function AddressesPage() {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        open={Boolean(pendingDelete)}
+        title="删除地址"
+        content={`确定删除「${pendingDelete?.receiver ?? ''}」的收货地址吗？删除后不可恢复。`}
+        confirmText="删除"
+        danger
+        onConfirm={() => pendingDelete && removeAddress(pendingDelete.id)}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

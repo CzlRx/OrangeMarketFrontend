@@ -2,18 +2,21 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Clock3,
+  CreditCard,
   Heart,
   LogOut,
   MapPin,
   MessageSquareText,
-  PackageCheck,
+  Package,
   ReceiptText,
+  Truck,
   UserRound,
 } from 'lucide-react'
-import type { Gender, UserProfile } from '../types'
-import { userApi } from '../lib/api'
+import type { Gender, OrderStatus, UserProfile } from '../types'
+import { orderApi, userApi } from '../lib/api'
 import { formatDate, maskPhone } from '../lib/format'
 import { LoadingState } from '../components/LoadingState'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useAuth } from '../state/AuthContext'
 import { useToast } from '../state/ToastContext'
 
@@ -23,7 +26,14 @@ const QUICK_LINKS = [
   { to: '/favorites', label: '我的收藏', icon: Heart },
   { to: '/history', label: '浏览足迹', icon: Clock3 },
   { to: '/reviews', label: '待评价', icon: MessageSquareText },
-  { to: '/catalog', label: '去购物', icon: PackageCheck },
+  { to: '/catalog', label: '去购物', icon: Package },
+]
+
+const ORDER_ENTRIES: { status: OrderStatus; label: string; icon: typeof CreditCard }[] = [
+  { status: 'pending_payment', label: '待付款', icon: CreditCard },
+  { status: 'pending_shipment', label: '待发货', icon: Package },
+  { status: 'pending_receipt', label: '待收货', icon: Truck },
+  { status: 'pending_review', label: '待评价', icon: MessageSquareText },
 ]
 
 export function ProfilePage() {
@@ -36,6 +46,7 @@ export function ProfilePage() {
   const [birthday, setBirthday] = useState(user?.birthday ?? '')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [orderCounts, setOrderCounts] = useState<Record<string, number>>({})
 
   useEffect(() => {
     userApi
@@ -49,6 +60,19 @@ export function ProfilePage() {
       .catch((err) => toast(err instanceof Error ? err.message : '资料加载失败', 'error'))
       .finally(() => setLoading(false))
   }, [toast])
+
+  useEffect(() => {
+    Promise.all(
+      ORDER_ENTRIES.map((entry) =>
+        orderApi
+          .list({ status: entry.status, page: 1, pageSize: 1 })
+          .then((data) => [entry.status, data.total] as const)
+          .catch(() => [entry.status, 0] as const),
+      ),
+    ).then((entries) => {
+      setOrderCounts(Object.fromEntries(entries))
+    })
+  }, [])
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
@@ -83,15 +107,35 @@ export function ProfilePage() {
 
   return (
     <div className="page profile-page">
-      <div className="profile-head">
+      <Breadcrumb items={[{ label: '首页', to: '/' }, { label: '个人中心' }]} />
+
+      <div className="profile-hero">
         <div className="profile-avatar">
-          {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <UserRound size={30} />}
+          {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <UserRound size={28} />}
         </div>
-        <div>
-          <h1>{profile?.nickname || '橙子用户'}</h1>
-          <p>{profile ? maskPhone(profile.phone) : ''}</p>
+        <div className="profile-hero-info">
+          <h1>
+            {profile?.nickname || '橙子用户'}
+            <span className="role-badge">
+              {profile?.role === 'ADMIN' || profile?.role === 'admin' ? '管理员' : '普通用户'}
+            </span>
+          </h1>
+          <p>{profile ? `手机号 ${maskPhone(profile.phone)}` : ''}</p>
         </div>
-        <span className="role-badge">{profile?.role === 'ADMIN' || profile?.role === 'admin' ? '管理员' : '普通用户'}</span>
+      </div>
+
+      <div className="order-entries">
+        {ORDER_ENTRIES.map((entry) => (
+          <Link
+            key={entry.status}
+            to={`/orders?status=${entry.status}`}
+            className="order-entry"
+          >
+            <span className="entry-count">{orderCounts[entry.status] ?? 0}</span>
+            <entry.icon size={20} />
+            <span>{entry.label}</span>
+          </Link>
+        ))}
       </div>
 
       <div className="profile-layout">
@@ -104,17 +148,19 @@ export function ProfilePage() {
             </label>
             <label>
               <span>性别</span>
-              <div className="segmented">
-                {([0, 1, 2] as Gender[]).map((value) => (
-                  <button
-                    type="button"
-                    key={value}
-                    className={gender === value ? 'active' : ''}
-                    onClick={() => setGender(value)}
-                  >
-                    {value === 0 ? '保密' : value === 1 ? '男' : '女'}
-                  </button>
-                ))}
+              <div>
+                <div className="segmented">
+                  {([0, 1, 2] as Gender[]).map((value) => (
+                    <button
+                      type="button"
+                      key={value}
+                      className={gender === value ? 'active' : ''}
+                      onClick={() => setGender(value)}
+                    >
+                      {value === 0 ? '保密' : value === 1 ? '男' : '女'}
+                    </button>
+                  ))}
+                </div>
               </div>
             </label>
             <label>
@@ -138,14 +184,14 @@ export function ProfilePage() {
               const Icon = item.icon
               return (
                 <Link to={item.to} key={item.to} className="quick-link">
-                  <Icon size={20} />
+                  <Icon size={19} />
                   <span>{item.label}</span>
                 </Link>
               )
             })}
           </div>
           <button type="button" className="button secondary logout-button" onClick={handleLogout}>
-            <LogOut size={17} />
+            <LogOut size={16} />
             退出登录
           </button>
         </section>

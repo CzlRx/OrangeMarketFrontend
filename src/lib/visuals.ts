@@ -9,8 +9,47 @@ const FALLBACK_IMAGES = [
   'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?q=80&w=900&auto=format&fit=crop',
 ]
 
-export const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?q=80&w=1600&auto=format&fit=crop'
+function bannerImage(prompt: string) {
+  return `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(prompt)}&image_size=landscape_16_9`
+}
+
+export interface BannerSlide {
+  image: string
+  eyebrow: string
+  title: string
+  description: string
+  to: string
+}
+
+export const BANNER_SLIDES: BannerSlide[] = [
+  {
+    image: bannerImage(
+      'wide e-commerce hero banner, premium orange wireless headphones floating on clean warm gradient studio background, soft shadows, minimal modern commercial photography, negative space on left side',
+    ),
+    eyebrow: 'NEW ARRIVAL',
+    title: '声色俱佳，一戴倾心',
+    description: '新潮数码焕新上架，畅享纯净音质',
+    to: '/catalog',
+  },
+  {
+    image: bannerImage(
+      'wide e-commerce hero banner, minimalist scandinavian home living scene with ceramic vase and warm morning light, clean beige tones, commercial interior photography, negative space on left side',
+    ),
+    eyebrow: 'HOME LIVING',
+    title: '家居好物，治愈日常',
+    description: '精选生活百货，让家更有温度',
+    to: '/catalog',
+  },
+  {
+    image: bannerImage(
+      'wide e-commerce hero banner, smart watch and smartphone on bright clean gradient background, tech gadgets flat lay, modern minimal commercial product photography, negative space on left side',
+    ),
+    eyebrow: 'SMART TECH',
+    title: '智能装备，效率升级',
+    description: '爆款数码限时特惠，低至 7 折',
+    to: '/catalog',
+  },
+]
 
 function hashCode(value: string) {
   let hash = 0

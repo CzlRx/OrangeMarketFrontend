@@ -7,6 +7,7 @@ import { formatPrice } from '../lib/format'
 import { productImage } from '../lib/visuals'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
 
 export function CheckoutPage() {
@@ -112,13 +113,21 @@ export function CheckoutPage() {
 
   return (
     <div className="page checkout-page">
+      <Breadcrumb
+        items={[
+          { label: '首页', to: '/' },
+          { label: '购物车', to: '/cart' },
+          { label: '确认订单' },
+        ]}
+      />
+
       <div className="page-heading">
         <div>
           <h1>确认订单</h1>
-          <p>{isDirect ? '立即购买' : '购物车结算'}</p>
+          <p>{isDirect ? '立即购买' : '购物车结算'} · 请核对以下信息</p>
         </div>
         <Link to="/cart" className="icon-text-button">
-          <ShoppingBag size={17} />
+          <ShoppingBag size={16} />
           返回购物车
         </Link>
       </div>
@@ -139,9 +148,9 @@ export function CheckoutPage() {
           <div className="checkout-main">
             <section className="checkout-section">
               <div className="section-title">
-                <MapPin size={18} />
+                <MapPin size={17} />
                 <h2>收货地址</h2>
-                <Link to="/addresses">管理</Link>
+                <Link to="/addresses">管理地址</Link>
               </div>
               <div className="address-picker">
                 {addresses.map((address) => (
@@ -169,7 +178,7 @@ export function CheckoutPage() {
 
             <section className="checkout-section">
               <div className="section-title">
-                <ShoppingBag size={18} />
+                <ShoppingBag size={17} />
                 <h2>商品清单</h2>
               </div>
               <div className="checkout-items">
@@ -196,8 +205,9 @@ export function CheckoutPage() {
                 className="remark-input"
                 value={remark}
                 onChange={(event) => setRemark(event.target.value)}
-                placeholder="给商家留言（可选）"
+                placeholder="给商家留言（选填）"
                 rows={3}
+                maxLength={200}
               />
             </section>
           </div>

@@ -7,6 +7,8 @@ import { formatDateTime, formatPrice } from '../lib/format'
 import { productImage } from '../lib/visuals'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
+import { ConfirmModal } from '../components/Modal'
+import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
 
 type View = 'browse' | 'search'
@@ -17,6 +19,7 @@ export function HistoryPage() {
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState('')
+  const [confirmClear, setConfirmClear] = useState<View | null>(null)
   const { toast } = useToast()
 
   const load = useCallback(async () => {
@@ -52,7 +55,7 @@ export function HistoryPage() {
   }
 
   const clearBrowse = async () => {
-    if (!window.confirm('确认清空全部浏览足迹？')) return
+    setConfirmClear(null)
     try {
       await socialApi.clearBrowse()
       setBrowse([])
@@ -76,7 +79,7 @@ export function HistoryPage() {
   }
 
   const clearSearch = async () => {
-    if (!window.confirm('确认清空全部搜索记录？')) return
+    setConfirmClear(null)
     try {
       await socialApi.clearSearch()
       setSearchHistory([])
@@ -90,6 +93,8 @@ export function HistoryPage() {
 
   return (
     <div className="page history-page">
+      <Breadcrumb items={[{ label: '首页', to: '/' }, { label: '浏览足迹' }]} />
+
       <div className="page-heading">
         <div>
           <h1>浏览足迹</h1>
@@ -121,12 +126,12 @@ export function HistoryPage() {
           />
         ) : (
           <div className="history-list">
-            <div className="history-list-actions">
-              <button type="button" className="icon-text-button danger" onClick={clearBrowse}>
-                <Trash2 size={16} />
-                清空足迹
-              </button>
-            </div>
+          <div className="history-list-actions">
+            <button type="button" className="icon-text-button danger" onClick={() => setConfirmClear('browse')}>
+              <Trash2 size={16} />
+              清空足迹
+            </button>
+          </div>
             {browse.map((item) => (
               <article className="history-row" key={item.id}>
                 {item.product && (
@@ -163,7 +168,7 @@ export function HistoryPage() {
       ) : (
         <div className="history-list">
           <div className="history-list-actions">
-            <button type="button" className="icon-text-button danger" onClick={clearSearch}>
+            <button type="button" className="icon-text-button danger" onClick={() => setConfirmClear('search')}>
               <Trash2 size={16} />
               清空记录
             </button>
@@ -185,6 +190,25 @@ export function HistoryPage() {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmClear === 'browse'}
+        title="清空浏览足迹"
+        content="确定清空全部浏览足迹吗？清空后不可恢复。"
+        confirmText="清空"
+        danger
+        onConfirm={clearBrowse}
+        onCancel={() => setConfirmClear(null)}
+      />
+      <ConfirmModal
+        open={confirmClear === 'search'}
+        title="清空搜索记录"
+        content="确定清空全部搜索记录吗？清空后不可恢复。"
+        confirmText="清空"
+        danger
+        onConfirm={clearSearch}
+        onCancel={() => setConfirmClear(null)}
+      />
     </div>
   )
 }

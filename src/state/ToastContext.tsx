@@ -15,6 +15,7 @@ interface ToastItem {
   id: number
   kind: ToastKind
   message: string
+  leaving?: boolean
 }
 
 interface ToastValue {
@@ -37,14 +38,22 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setToasts((prev) => prev.filter((item) => item.id !== id))
   }, [])
 
+  const dismiss = useCallback(
+    (id: number) => {
+      setToasts((prev) => prev.map((item) => (item.id === id ? { ...item, leaving: true } : item)))
+      window.setTimeout(() => remove(id), 220)
+    },
+    [remove],
+  )
+
   const toast = useCallback(
     (message: string, kind: ToastKind = 'success') => {
       const id = Date.now() + Math.floor(Math.random() * 1000)
       setToasts((prev) => [...prev.slice(-2), { id, kind, message }])
-      const timer = window.setTimeout(() => remove(id), 3200)
+      const timer = window.setTimeout(() => dismiss(id), 3200)
       timers.current.push(timer)
     },
-    [remove],
+    [dismiss],
   )
 
   const value = useMemo(() => ({ toast }), [toast])
@@ -61,7 +70,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((item) => {
           const Icon = icons[item.kind]
           return (
-            <div className={`toast toast-${item.kind}`} key={item.id}>
+            <div
+              className={`toast toast-${item.kind}${item.leaving ? ' leaving' : ''}`}
+              key={item.id}
+              onClick={() => dismiss(item.id)}
+            >
               <Icon size={17} />
               <span>{item.message}</span>
             </div>
