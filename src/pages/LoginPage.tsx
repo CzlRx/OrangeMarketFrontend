@@ -128,8 +128,9 @@ export function LoginPage() {
                 <KeyRound size={17} />
                 <input
                   value={captchaCode}
-                  onChange={(event) => setCaptchaCode(event.target.value)}
+                  onChange={(event) => setCaptchaCode(event.target.value.toUpperCase().slice(0, 4))}
                   autoComplete="off"
+                  maxLength={4}
                   placeholder="图形验证码"
                 />
               </div>
