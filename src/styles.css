@@ -805,23 +805,58 @@ textarea::placeholder {
   display: inline-flex;
   align-items: center;
   height: 28px;
-  padding: 0 12px;
+  max-width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--r-round);
   background: var(--color-surface);
   color: var(--color-ink-2);
   font-size: var(--fs-sm);
-  max-width: 100%;
   overflow: hidden;
   transition:
     color var(--dur) var(--ease),
     border-color var(--dur) var(--ease);
 }
 
-.search-chip span {
+button.search-chip {
+  padding: 0 12px;
+}
+
+.search-chip-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  padding: 0 4px 0 12px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+}
+
+.search-chip-main span,
+button.search-chip span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.search-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-ink-3);
+  flex-shrink: 0;
+}
+
+.search-chip-remove:hover {
+  color: var(--color-primary);
 }
 
 .search-chip:hover {

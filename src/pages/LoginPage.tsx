@@ -11,7 +11,7 @@ export function LoginPage() {
   const { user, login } = useAuth()
   const { toast } = useToast()
 
-  const [phone, setPhone] = useState('13800138001')
+  const [phone, setPhone] = useState('')
   const [captchaImage, setCaptchaImage] = useState('')
   const [captchaKey, setCaptchaKey] = useState('')
   const [captchaCode, setCaptchaCode] = useState('')
@@ -64,7 +64,7 @@ export function LoginPage() {
         captchaCode: captchaCode.trim(),
       })
       setCountdown(60)
-      toast('验证码已发送，演示码为 1234')
+      toast('验证码已发送')
     } catch (err) {
       toast(err instanceof Error ? err.message : '发送失败', 'error')
       if (captchaImage) void loadCaptcha()
@@ -154,7 +154,7 @@ export function LoginPage() {
                   onChange={(event) => setSmsCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
                   inputMode="numeric"
                   autoComplete="one-time-code"
-                  placeholder="1234"
+                  placeholder="请输入短信验证码"
                 />
               </div>
               <button
@@ -174,7 +174,6 @@ export function LoginPage() {
         </form>
 
         <div className="login-extra">
-          <span>短信验证码固定为 1234</span>
           <Link to="/">返回首页</Link>
         </div>
       </div>

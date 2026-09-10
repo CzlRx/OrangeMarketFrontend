@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Clock3, Search, Trash2, X } from 'lucide-react'
 import type { SearchHistoryItem } from '../types'
-import { getToken, socialApi } from '../lib/api'
+import { socialApi } from '../lib/api'
+import { useAuth } from '../state/AuthContext'
 import { useCategories } from '../state/CategoryContext'
 import { useToast } from '../state/ToastContext'
 
 export function SearchBar() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { categories } = useCategories()
   const { toast } = useToast()
 
@@ -16,9 +18,9 @@ export function SearchBar() {
   const [history, setHistory] = useState<SearchHistoryItem[]>([])
   const wrapperRef = useRef<HTMLDivElement>(null)
 
-  const loggedIn = Boolean(getToken())
+  const loggedIn = Boolean(user)
 
-  useEffect(() => {
+  const loadHistory = useCallback(() => {
     if (!loggedIn) {
       setHistory([])
       return
@@ -28,6 +30,10 @@ export function SearchBar() {
       .then((data) => setHistory(data.list))
       .catch(() => setHistory([]))
   }, [loggedIn])
+
+  useEffect(() => {
+    loadHistory()
+  }, [loadHistory])
 
   useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
@@ -41,8 +47,16 @@ export function SearchBar() {
     const trimmed = value.trim()
     setFocused(false)
     if (trimmed) {
-      if (getToken()) {
-        socialApi.recordSearch({ keyword: trimmed }).catch(() => undefined)
+      if (loggedIn) {
+        socialApi
+          .recordSearch({ keyword: trimmed })
+          .then((item) => {
+            setHistory((prev) => {
+              const next = [item, ...prev.filter((h) => h.keyword !== item.keyword)]
+              return next.slice(0, 8)
+            })
+          })
+          .catch(() => undefined)
       }
       navigate(`/catalog?keyword=${encodeURIComponent(trimmed)}`)
     } else {
@@ -64,6 +78,15 @@ export function SearchBar() {
     }
   }
 
+  const removeHistoryItem = async (historyId: string) => {
+    try {
+      await socialApi.deleteSearch(historyId)
+      setHistory((prev) => prev.filter((item) => item.id !== historyId))
+    } catch {
+      toast('删除搜索记录失败', 'error')
+    }
+  }
+
   const showDropdown = focused
 
   return (
@@ -72,7 +95,10 @@ export function SearchBar() {
         <input
           value={keyword}
           onChange={(event) => setKeyword(event.target.value)}
-          onFocus={() => setFocused(true)}
+          onFocus={() => {
+            setFocused(true)
+            loadHistory()
+          }}
           placeholder="搜索商品，如：蓝牙耳机"
           aria-label="搜索商品"
           maxLength={50}
@@ -106,18 +132,27 @@ export function SearchBar() {
               </div>
               <div className="search-chips">
                 {history.map((item) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    className="search-chip"
-                    onClick={() => {
-                      setKeyword(item.keyword)
-                      runSearch(item.keyword)
-                    }}
-                  >
-                    <Clock3 size={12} style={{ marginRight: 5, color: 'var(--color-ink-3)' }} />
-                    <span>{item.keyword}</span>
-                  </button>
+                  <div key={item.id} className="search-chip">
+                    <button
+                      type="button"
+                      className="search-chip-main"
+                      onClick={() => {
+                        setKeyword(item.keyword)
+                        runSearch(item.keyword)
+                      }}
+                    >
+                      <Clock3 size={12} style={{ color: 'var(--color-ink-3)' }} />
+                      <span>{item.keyword}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="search-chip-remove"
+                      aria-label={`删除搜索记录 ${item.keyword}`}
+                      onClick={() => void removeHistoryItem(item.id)}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
