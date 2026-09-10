@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from './components/AppShell'
 import { LoadingState } from './components/LoadingState'
+import { AdminPage } from './pages/AdminPage'
 import { AddressesPage } from './pages/AddressesPage'
 import { CartPage } from './pages/CartPage'
 import { CatalogPage } from './pages/CatalogPage'
@@ -29,6 +30,21 @@ function RequireAuth({ children }: { children: ReactNode }) {
   if (!user) {
     const redirect = encodeURIComponent(location.pathname + location.search)
     return <Navigate to={`/login?redirect=${redirect}`} replace />
+  }
+  return <>{children}</>
+}
+
+function RequireAdmin({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading) return <LoadingState label="正在同步登录状态" />
+  if (!user) {
+    const redirect = encodeURIComponent(location.pathname + location.search)
+    return <Navigate to={`/login?redirect=${redirect}`} replace />
+  }
+  if (user.role !== 'ADMIN' && user.role !== 'admin') {
+    return <Navigate to="/profile" replace />
   }
   return <>{children}</>
 }
@@ -123,6 +139,14 @@ export function App() {
                     <RequireAuth>
                       <HistoryPage />
                     </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <RequireAdmin>
+                      <AdminPage />
+                    </RequireAdmin>
                   }
                 />
                 <Route path="*" element={<NotFoundPage />} />

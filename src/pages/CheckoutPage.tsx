@@ -23,6 +23,12 @@ export function CheckoutPage() {
   const directQuantity = Number(searchParams.get('quantity') ?? '1')
   const isDirect = Boolean(directProductId)
 
+  // 跳转地址管理后需要携带结算上下文，避免返回时丢失商品参数
+  const checkoutParams = searchParams.toString()
+  const addressesLink = `/addresses?redirect=${encodeURIComponent(
+    checkoutParams ? `/checkout?${checkoutParams}` : '/checkout',
+  )}`
+
   const [addresses, setAddresses] = useState<Address[]>([])
   const [addressId, setAddressId] = useState('')
   const [preview, setPreview] = useState<OrderPreview | null>(null)
@@ -138,7 +144,7 @@ export function CheckoutPage() {
           description="先添加一个地址再下单"
           icon={MapPin}
           action={
-            <Link to="/addresses" className="button primary">
+            <Link to={addressesLink} className="button primary">
               去添加地址
             </Link>
           }
@@ -150,7 +156,7 @@ export function CheckoutPage() {
               <div className="section-title">
                 <MapPin size={17} />
                 <h2>收货地址</h2>
-                <Link to="/addresses">管理地址</Link>
+                <Link to={addressesLink}>管理地址</Link>
               </div>
               <div className="address-picker">
                 {addresses.map((address) => (

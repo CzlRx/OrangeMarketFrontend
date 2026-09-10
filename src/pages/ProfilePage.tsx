@@ -9,6 +9,7 @@ import {
   MessageSquareText,
   Package,
   ReceiptText,
+  ShieldCheck,
   Truck,
   UserRound,
 } from 'lucide-react'
@@ -105,6 +106,11 @@ export function ProfilePage() {
 
   if (loading && !profile) return <div className="page"><LoadingState /></div>
 
+  const isAdmin = profile?.role === 'ADMIN' || profile?.role === 'admin'
+  const quickLinks = isAdmin
+    ? [{ to: '/admin', label: '管理后台', icon: ShieldCheck }, ...QUICK_LINKS]
+    : QUICK_LINKS
+
   return (
     <div className="page profile-page">
       <Breadcrumb items={[{ label: '首页', to: '/' }, { label: '个人中心' }]} />
@@ -180,7 +186,7 @@ export function ProfilePage() {
         <section className="quick-links">
           <h2>常用功能</h2>
           <div className="quick-grid">
-            {QUICK_LINKS.map((item) => {
+            {quickLinks.map((item) => {
               const Icon = item.icon
               return (
                 <Link to={item.to} key={item.to} className="quick-link">

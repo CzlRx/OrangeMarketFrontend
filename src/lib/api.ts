@@ -2,6 +2,8 @@ import type {
   Address,
   AddressRequest,
   AddCartItemRequest,
+  AdminShipmentResult,
+  AdminUserStatusResult,
   AuthMeUser,
   BrowseHistoryItem,
   BrowseHistoryRequest,
@@ -269,9 +271,9 @@ export const socialApi = {
 
 export const adminApi = {
   shipOrder: (orderId: string, body: ShipOrderRequest) =>
-    request<unknown>(`/admin/orders/${orderId}/ship`, { method: 'POST', body }),
+    request<AdminShipmentResult>(`/admin/orders/${orderId}/ship`, { method: 'POST', body }),
   banUser: (userId: string) =>
-    request<unknown>(`/admin/users/${userId}/ban`, { method: 'PUT' }),
+    request<AdminUserStatusResult>(`/admin/users/${userId}/ban`, { method: 'PUT' }),
 }
 
 export function readGuestCart() {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Check, MapPin, Plus, Trash2 } from 'lucide-react'
 import type { Address } from '../types'
 import { userApi } from '../lib/api'
@@ -30,6 +30,11 @@ const EMPTY_FORM: AddressFormState = {
 }
 
 export function AddressesPage() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
+  // 从结算页跳转过来时携带的回跳地址（含商品参数，避免返回结算后商品丢失）
+  const redirectTo = searchParams.get('redirect')
+
   const [addresses, setAddresses] = useState<Address[]>([])
   const [editing, setEditing] = useState<Address | 'new' | null>(null)
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM)
@@ -91,6 +96,11 @@ export function AddressesPage() {
       else if (editing) await userApi.updateAddress(editing.id, body)
       toast('地址已保存')
       setEditing(null)
+      // 从结算页过来新增地址后，直接带原参数返回结算页
+      if (editing === 'new' && redirectTo) {
+        navigate(redirectTo)
+        return
+      }
       await load()
     } catch (err) {
       toast(err instanceof Error ? err.message : '保存失败', 'error')
@@ -188,9 +198,11 @@ export function AddressesPage() {
                 </footer>
               </article>
             ))}
-            <Link to="/checkout" className="button secondary">
-              返回结算
-            </Link>
+            {redirectTo && (
+              <Link to={redirectTo} className="button secondary">
+                返回结算
+              </Link>
+            )}
           </div>
 
           {editing && (
