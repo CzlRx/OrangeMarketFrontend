@@ -34,6 +34,29 @@ export function formatDate(value?: string) {
   }).format(date)
 }
 
+/** 聊天气泡时间：当天只显示时分，更早显示月日时分（兼容带纳秒的 WS 时间戳） */
+export function formatChatTime(value?: string) {
+  if (!value) return ''
+  const normalized = value.replace(/(\.\d{3})\d+/, '$1')
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) return value
+  const sameDay = date.toDateString() === new Date().toDateString()
+  return new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    ...(sameDay ? {} : { month: '2-digit', day: '2-digit' }),
+  }).format(date)
+}
+
+/** 本地时间 yyyy-MM-ddTHH:mm:ss，用于乐观插入的临时消息 */
+export function nowLocalIso() {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const d = new Date()
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
+    d.getMinutes(),
+  )}:${pad(d.getSeconds())}`
+}
+
 export function relativeTime(value?: string) {
   if (!value) return '-'
   const date = new Date(value).getTime()

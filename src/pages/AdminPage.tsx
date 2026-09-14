@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { PackageCheck, ShieldBan, Truck } from 'lucide-react'
+import { Headset, PackageCheck, ShieldBan, Truck } from 'lucide-react'
 import type { AdminShipmentResult, AdminUserStatusResult } from '../types'
 import { adminApi } from '../lib/api'
 import { formatDateTime } from '../lib/format'
@@ -77,9 +77,15 @@ export function AdminPage() {
           <h1>管理后台</h1>
           <p>订单发货与用户封禁管理</p>
         </div>
-        <Link to="/profile" className="icon-text-button">
-          返回个人中心
-        </Link>
+        <div className="page-heading-actions">
+          <Link to="/admin/service" className="icon-text-button">
+            <Headset size={15} />
+            客服工作台
+          </Link>
+          <Link to="/profile" className="icon-text-button">
+            返回个人中心
+          </Link>
+        </div>
       </div>
 
       <div className="checkout-layout">

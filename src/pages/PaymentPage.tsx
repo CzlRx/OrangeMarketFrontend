@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { CheckCircle2, Clock3, CreditCard } from 'lucide-react'
-import type { Order } from '../types'
+import { CheckCircle2, Clock3, CreditCard, XCircle } from 'lucide-react'
+import type { Order, OrderStatus } from '../types'
 import { orderApi } from '../lib/api'
 import { formatDateTime, formatPrice, ORDER_STATUS_LABELS } from '../lib/format'
 import { LoadingState } from '../components/LoadingState'
 import { EmptyState } from '../components/EmptyState'
 import { Breadcrumb } from '../components/Breadcrumb'
 import { useToast } from '../state/ToastContext'
+
+const PAID_STATUSES = new Set<OrderStatus>([
+  'pending_shipment',
+  'pending_receipt',
+  'pending_review',
+  'completed',
+  'refunding',
+  'refunded',
+])
 
 function useCountdown(target?: string) {
   const [seconds, setSeconds] = useState(0)
@@ -74,7 +83,35 @@ export function PaymentPage() {
   if (loading) return <div className="page"><LoadingState /></div>
   if (!order) return <div className="page"><EmptyState title="订单不存在" /></div>
 
-  const paid = order.status !== 'pending_payment'
+  const paid = PAID_STATUSES.has(order.status)
+  const cancelled = order.status === 'cancelled'
+  const expirePassed = order.paymentExpireAt
+    ? new Date(order.paymentExpireAt).getTime() <= Date.now()
+    : false
+  const expired = order.status === 'pending_payment' && expirePassed
+  const canPay = order.status === 'pending_payment' && !expired
+
+  let statusClass = ''
+  let statusIcon = <CreditCard size={34} />
+  let statusTitle = `待支付 ${formatPrice(order.total)}`
+  let statusDesc = '使用模拟支付完成付款'
+
+  if (paid) {
+    statusClass = 'success'
+    statusIcon = <CheckCircle2 size={34} />
+    statusTitle = '订单已支付'
+    statusDesc = `当前状态：${ORDER_STATUS_LABELS[order.status]}`
+  } else if (cancelled) {
+    statusClass = 'muted'
+    statusIcon = <XCircle size={34} />
+    statusTitle = '订单已取消'
+    statusDesc = '该订单已取消，无法继续支付'
+  } else if (expired) {
+    statusClass = 'muted'
+    statusIcon = <Clock3 size={34} />
+    statusTitle = '支付已超时'
+    statusDesc = '订单支付时限已过，请返回订单列表查看'
+  }
 
   return (
     <div className="page payment-page">
@@ -87,14 +124,10 @@ export function PaymentPage() {
       />
 
       <div className="payment-panel">
-        <div className={`payment-status ${paid ? 'success' : ''}`}>
-          {paid ? <CheckCircle2 size={34} /> : <CreditCard size={34} />}
-          <h1>{paid ? '订单已支付' : `待支付 ${formatPrice(order.total)}`}</h1>
-          <p>
-            {paid
-              ? `当前状态：${ORDER_STATUS_LABELS[order.status]}`
-              : '使用模拟支付完成付款'}
-          </p>
+        <div className={`payment-status ${statusClass}`}>
+          {statusIcon}
+          <h1>{statusTitle}</h1>
+          <p>{statusDesc}</p>
         </div>
 
         <div className="payment-info">
@@ -106,7 +139,7 @@ export function PaymentPage() {
             <span>创建时间</span>
             <b>{formatDateTime(order.createdAt)}</b>
           </div>
-          {order.paymentExpireAt && !paid && (
+          {order.paymentExpireAt && canPay && (
             <div className="summary-line countdown-line">
               <span>
                 <Clock3 size={15} />
@@ -118,12 +151,12 @@ export function PaymentPage() {
         </div>
 
         <div className="payment-actions">
-          {!paid ? (
+          {canPay ? (
             <button
               type="button"
               className="button primary"
               onClick={pay}
-              disabled={paying || (order.paymentExpireAt ? remaining <= 0 : false)}
+              disabled={paying}
             >
               {paying ? '支付中...' : '确认支付'}
             </button>

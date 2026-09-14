@@ -4,6 +4,7 @@ import { AppShell } from './components/AppShell'
 import { LoadingState } from './components/LoadingState'
 import { AdminPage } from './pages/AdminPage'
 import { AddressesPage } from './pages/AddressesPage'
+import { AgentConsolePage } from './pages/AgentConsolePage'
 import { CartPage } from './pages/CartPage'
 import { CatalogPage } from './pages/CatalogPage'
 import { CheckoutPage } from './pages/CheckoutPage'
@@ -18,6 +19,7 @@ import { PaymentPage } from './pages/PaymentPage'
 import { ProductPage } from './pages/ProductPage'
 import { ProfilePage } from './pages/ProfilePage'
 import { ReviewsPage } from './pages/ReviewsPage'
+import { ServicePage } from './pages/ServicePage'
 import { CartProvider } from './state/CartContext'
 import { AuthProvider, useAuth } from './state/AuthContext'
 import { ToastProvider } from './state/ToastContext'
@@ -126,6 +128,14 @@ export function App() {
                   }
                 />
                 <Route
+                  path="/service"
+                  element={
+                    <RequireAuth>
+                      <ServicePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route
                   path="/favorites"
                   element={
                     <RequireAuth>
@@ -146,6 +156,14 @@ export function App() {
                   element={
                     <RequireAdmin>
                       <AdminPage />
+                    </RequireAdmin>
+                  }
+                />
+                <Route
+                  path="/admin/service"
+                  element={
+                    <RequireAdmin>
+                      <AgentConsolePage />
                     </RequireAdmin>
                   }
                 />

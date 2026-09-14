@@ -35,6 +35,8 @@ import type {
   ReviewSubmissionResult,
   SearchHistoryItem,
   SearchHistoryRequest,
+  ServiceMessage,
+  ServiceSession,
   ShipOrderRequest,
   SmsInfo,
   SmsRequest,
@@ -274,6 +276,50 @@ export const adminApi = {
     request<AdminShipmentResult>(`/admin/orders/${orderId}/ship`, { method: 'POST', body }),
   banUser: (userId: string) =>
     request<AdminUserStatusResult>(`/admin/users/${userId}/ban`, { method: 'PUT' }),
+}
+
+export type ServicePageParams = {
+  page?: number
+  pageSize?: number
+}
+
+/** 同一时刻只发一次建会话请求，避免 React StrictMode / 连点打出两条大厅会话 */
+let createSessionInflight: Promise<ServiceSession> | null = null
+
+/** 用户端人工客服 REST */
+export const serviceApi = {
+  createSession: () => {
+    if (!createSessionInflight) {
+      createSessionInflight = request<ServiceSession>('/service/sessions', { method: 'POST' }).finally(
+        () => {
+          createSessionInflight = null
+        },
+      )
+    }
+    return createSessionInflight
+  },
+  currentSession: () => request<ServiceSession>('/service/sessions/current'),
+  session: (sessionId: string) => request<ServiceSession>(`/service/sessions/${sessionId}`),
+  messages: (sessionId: string, params: ServicePageParams = {}) =>
+    request<PageData<ServiceMessage>>(`/service/sessions/${sessionId}/messages`, { params }),
+  closeSession: (sessionId: string) =>
+    request<Record<string, never>>(`/service/sessions/${sessionId}/close`, { method: 'POST' }),
+}
+
+/** 客服工作台 REST（admin） */
+export const adminServiceApi = {
+  lobby: (params: ServicePageParams = {}) =>
+    request<PageData<ServiceSession>>('/admin/service/sessions/lobby', { params }),
+  mine: (params: ServicePageParams = {}) =>
+    request<PageData<ServiceSession>>('/admin/service/sessions/mine', { params }),
+  claim: (sessionId: string) =>
+    request<ServiceSession>(`/admin/service/sessions/${sessionId}/claim`, { method: 'POST' }),
+  messages: (sessionId: string, params: ServicePageParams = {}) =>
+    request<PageData<ServiceMessage>>(`/admin/service/sessions/${sessionId}/messages`, { params }),
+  closeSession: (sessionId: string) =>
+    request<Record<string, never>>(`/admin/service/sessions/${sessionId}/close`, {
+      method: 'POST',
+    }),
 }
 
 export function readGuestCart() {

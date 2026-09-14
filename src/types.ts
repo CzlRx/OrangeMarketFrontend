@@ -390,3 +390,58 @@ export interface IdBatchRequest {
 export interface ShipOrderRequest {
   trackingNo: string
 }
+
+/* ------------------------------ 人工客服 ------------------------------ */
+
+export type ServiceSessionStatus = 'active' | 'closed'
+
+export type ServiceSenderType = 'user' | 'agent' | 'system'
+
+export interface ServiceSession {
+  id: string
+  userId: string
+  userNickname?: string
+  agentId?: string
+  status: ServiceSessionStatus
+  createdAt: string
+  closedAt?: string
+}
+
+export interface ServiceMessage {
+  id: string
+  sessionId: string
+  senderType: ServiceSenderType
+  senderId?: string | null
+  content: string
+  createdAt: string
+}
+
+export type WsClientSend =
+  | { type: 'ping' }
+  | { type: 'chat'; sessionId: string; content: string }
+
+export type WsServerEvent =
+  | { type: 'connected'; userId: number; agent: boolean }
+  | { type: 'disconnected' }
+  | { type: 'pong' }
+  | {
+      type: 'chat'
+      sessionId: string
+      messageId: string
+      senderType: ServiceSenderType
+      senderId?: string
+      content: string
+      createdAt?: string
+    }
+  | { type: 'session_claimed'; sessionId: string; agentId: string }
+  | {
+      type: 'session_closed'
+      sessionId: string
+      closedBy: 'user' | 'agent'
+      closerId?: string
+      messageId: string
+      senderType: 'system'
+      content: string
+      createdAt?: string
+    }
+  | { type: 'error'; message: string }

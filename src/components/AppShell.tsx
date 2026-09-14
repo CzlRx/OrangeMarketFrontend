@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   Citrus,
   Headset,
@@ -78,6 +78,20 @@ function TopBar() {
         </div>
       </div>
     </div>
+  )
+}
+
+/** 全局悬浮客服入口：所有页面右下角，admin 与客服页本身不展示 */
+function ServiceFloatButton() {
+  const { user } = useAuth()
+  const location = useLocation()
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'admin'
+  if (isAdmin || location.pathname === '/service') return null
+  return (
+    <Link to="/service" className="service-float" aria-label="在线客服">
+      <Headset size={20} />
+      <span>客服</span>
+    </Link>
   )
 }
 
@@ -210,6 +224,8 @@ export function AppShell() {
             <span>我的</span>
           </NavLink>
         </nav>
+
+        <ServiceFloatButton />
       </div>
     </CategoryProvider>
   )
