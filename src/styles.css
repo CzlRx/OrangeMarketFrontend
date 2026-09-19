@@ -581,6 +581,14 @@ textarea::placeholder {
   white-space: nowrap;
 }
 
+.header-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
 .header-cart {
   position: relative;
   display: inline-flex;
@@ -3399,8 +3407,11 @@ button.search-chip span {
 }
 
 .profile-avatar {
-  width: 64px;
-  height: 64px;
+  position: relative;
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: none;
   border-radius: 50%;
   overflow: hidden;
   background: var(--color-primary-soft);
@@ -3415,6 +3426,36 @@ button.search-chip span {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.profile-avatar:hover .profile-avatar-overlay,
+.profile-avatar:focus-visible .profile-avatar-overlay,
+.profile-avatar.uploading .profile-avatar-overlay {
+  opacity: 1;
+}
+
+.profile-avatar:disabled {
+  opacity: 1;
+  cursor: wait;
+}
+
+.loader.light {
+  width: 18px;
+  height: 18px;
+  border-color: rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
 }
 
 .profile-hero-info {
@@ -3834,6 +3875,73 @@ button.search-chip span {
 
 .form-actions .button {
   flex: 1;
+}
+
+.admin-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--sp-3);
+  margin: var(--sp-4) 0 var(--sp-2);
+}
+
+.admin-image-tile {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--r-sm);
+  background: #f7f7f7;
+}
+
+.admin-image-tile.cover {
+  border-color: var(--color-primary);
+}
+
+.admin-image-tile > button:first-child {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.admin-image-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.admin-image-badge {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 1px 6px;
+  border-radius: var(--r-round);
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.admin-image-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-image-remove:hover {
+  background: var(--color-red);
 }
 
 /* ------------------- 26. Favorites / History / Reviews ------------------ */

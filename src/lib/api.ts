@@ -2,6 +2,7 @@ import type {
   Address,
   AddressRequest,
   AddCartItemRequest,
+  AdminProductImagesRequest,
   AdminShipmentResult,
   AdminUserStatusResult,
   AuthMeUser,
@@ -25,6 +26,8 @@ import type {
   OrderCreateResult,
   OrderPreview,
   OrderStatus,
+  OssSignDTO,
+  OssSignRequest,
   PageData,
   PayOrderRequest,
   PayOrderResult,
@@ -276,6 +279,13 @@ export const adminApi = {
     request<AdminShipmentResult>(`/admin/orders/${orderId}/ship`, { method: 'POST', body }),
   banUser: (userId: string) =>
     request<AdminUserStatusResult>(`/admin/users/${userId}/ban`, { method: 'PUT' }),
+  updateProductImages: (productId: string, body: AdminProductImagesRequest) =>
+    request<Product>(`/admin/products/${productId}/images`, { method: 'PUT', body }),
+}
+
+export const uploadApi = {
+  sign: (body: OssSignRequest) =>
+    request<OssSignDTO>('/uploads/sign', { method: 'POST', body }),
 }
 
 export type ServicePageParams = {

@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
+  Camera,
   Clock3,
   CreditCard,
   Heart,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 import type { Gender, OrderStatus, UserProfile } from '../types'
 import { orderApi, userApi } from '../lib/api'
+import { OSS_IMAGE_ACCEPT, uploadImageToOss } from '../lib/ossUpload'
 import { formatDate, maskPhone } from '../lib/format'
 import { LoadingState } from '../components/LoadingState'
 import { Breadcrumb } from '../components/Breadcrumb'
@@ -47,7 +49,9 @@ export function ProfilePage() {
   const [birthday, setBirthday] = useState(user?.birthday ?? '')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [orderCounts, setOrderCounts] = useState<Record<string, number>>({})
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     userApi
@@ -74,6 +78,31 @@ export function ProfilePage() {
       setOrderCounts(Object.fromEntries(entries))
     })
   }, [])
+
+  const applyProfile = (data: UserProfile) => {
+    setProfile(data)
+    setUser(data)
+  }
+
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file || !profile) return
+    setUploadingAvatar(true)
+    try {
+      const result = await uploadImageToOss({
+        file,
+        scene: 'avatar',
+        userId: profile.id,
+      })
+      applyProfile(await userApi.update({ avatarUrl: result.accessUrl }))
+      toast('头像已更新')
+    } catch (err) {
+      toast(err instanceof Error ? err.message : '头像上传失败', 'error')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
 
   const save = async (event: FormEvent) => {
     event.preventDefault()
@@ -116,9 +145,25 @@ export function ProfilePage() {
       <Breadcrumb items={[{ label: '首页', to: '/' }, { label: '个人中心' }]} />
 
       <div className="profile-hero">
-        <div className="profile-avatar">
+        <button
+          type="button"
+          className={`profile-avatar${uploadingAvatar ? ' uploading' : ''}`}
+          onClick={() => avatarInputRef.current?.click()}
+          disabled={uploadingAvatar}
+          aria-label="更换头像"
+        >
           {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : <UserRound size={28} />}
-        </div>
+          <span className="profile-avatar-overlay">
+            {uploadingAvatar ? <span className="loader light" /> : <Camera size={18} />}
+          </span>
+        </button>
+        <input
+          ref={avatarInputRef}
+          type="file"
+          accept={OSS_IMAGE_ACCEPT}
+          hidden
+          onChange={handleAvatarChange}
+        />
         <div className="profile-hero-info">
           <h1>
             {profile?.nickname || '橙子用户'}
@@ -127,6 +172,7 @@ export function ProfilePage() {
             </span>
           </h1>
           <p>{profile ? `手机号 ${maskPhone(profile.phone)}` : ''}</p>
+          <p className="muted-note">点击头像更换，支持 jpeg / png / webp / gif，不超过 2MB</p>
         </div>
       </div>
 

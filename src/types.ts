@@ -306,6 +306,41 @@ export interface UserProfileUpdateRequest {
   nickname?: string
   gender?: Gender
   birthday?: string
+  avatarUrl?: string
+}
+
+export type OssUploadScene = 'avatar' | 'product'
+
+export interface OssSignRequest {
+  scene: OssUploadScene
+  filename: string
+  contentType: string
+}
+
+/** POST /api/uploads/sign 的 data；部分字段为 Jackson @JsonProperty 的下划线名 */
+export interface OssSignDTO {
+  dir: string
+  key: string
+  host: string
+  accessUrl: string
+  policy: string
+  security_token: string
+  signature: string
+  x_oss_credential: string
+  x_oss_date: string
+  x_oss_signature_version: string
+  callback?: string
+}
+
+export interface OssCallbackResult {
+  object: string
+  accessUrl: string
+  scene: OssUploadScene
+}
+
+export interface AdminProductImagesRequest {
+  coverImage?: string
+  images?: string[]
 }
 
 export interface AddressRequest {

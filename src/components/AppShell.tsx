@@ -170,7 +170,11 @@ export function AppShell() {
 
             <div className="header-actions">
               <Link to={user ? '/profile' : '/login'} className="header-user" title={user?.nickname || '登录'}>
-                <UserRound size={18} />
+                {user?.avatarUrl ? (
+                  <img className="header-avatar" src={user.avatarUrl} alt="" />
+                ) : (
+                  <UserRound size={18} />
+                )}
                 <span className="user-name">{user?.nickname || '登录'}</span>
               </Link>
               <Link to="/cart" className="header-cart" aria-label={`购物车，${count} 件商品`}>
