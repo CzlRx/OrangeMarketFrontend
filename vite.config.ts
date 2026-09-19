@@ -16,6 +16,12 @@ export default defineConfig({
         ws: true,
         changeOrigin: true,
       },
+      '/oss-upload': {
+        target: 'https://czlrs-bucket.oss-cn-beijing.aliyuncs.com',
+        changeOrigin: true,
+        secure: true,
+        rewrite: () => '/',
+      },
     },
   },
 })

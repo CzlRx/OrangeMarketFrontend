@@ -108,9 +108,10 @@ async function postObject(
   form.append('x:userId', userId)
   form.append('file', file)
 
+  const uploadUrl = import.meta.env.DEV ? '/oss-upload' : host
   let response: Response
   try {
-    response = await fetch(host, { method: 'POST', body: form })
+    response = await fetch(uploadUrl, { method: 'POST', body: form })
   } catch {
     throw new Error('无法直传到对象存储，请检查 OSS 跨域配置或网络')
   }
@@ -169,6 +170,14 @@ export async function uploadImageToOss(options: {
       contentType,
     })
   } catch (err) {
+    if (err instanceof ApiError && err.message.includes('对象存储未配置')) {
+      const result = await uploadApi.direct(scene, file)
+      return {
+        accessUrl: result.accessUrl,
+        objectKey: result.object,
+        callbackSucceeded: true,
+      }
+    }
     if (err instanceof ApiError) throw err
     throw err instanceof Error ? err : new Error('获取上传签名失败')
   }

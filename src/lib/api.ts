@@ -26,8 +26,10 @@ import type {
   OrderCreateResult,
   OrderPreview,
   OrderStatus,
+  OssCallbackResult,
   OssSignDTO,
   OssSignRequest,
+  OssUploadScene,
   PageData,
   PayOrderRequest,
   PayOrderResult,
@@ -132,6 +134,42 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+  })
+
+  let payload: ApiPayload<T> | null = null
+  try {
+    payload = (await response.json()) as ApiPayload<T>
+  } catch {
+    payload = null
+  }
+
+  const code = payload?.code
+  const message = payload?.message ?? ''
+
+  if (response.status === 401 || code === 401 || code === 40100) {
+    clearSession()
+    redirectToLogin()
+    throw new ApiError(message || '登录已过期，请重新登录', 401, 401)
+  }
+
+  const businessFailed = typeof code === 'number' && code !== 0
+  if (!payload || !response.ok || businessFailed) {
+    const status = response.status || 500
+    throw new ApiError(message || `请求失败（HTTP ${status}）`, code ?? status, status)
+  }
+
+  return payload.data as T
+}
+
+async function requestForm<T>(path: string, form: FormData): Promise<T> {
+  const headers: Record<string, string> = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  const response = await fetch(`/api${path}`, {
+    method: 'POST',
+    headers,
+    body: form,
   })
 
   let payload: ApiPayload<T> | null = null
@@ -286,6 +324,12 @@ export const adminApi = {
 export const uploadApi = {
   sign: (body: OssSignRequest) =>
     request<OssSignDTO>('/uploads/sign', { method: 'POST', body }),
+  direct: (scene: OssUploadScene, file: File) => {
+    const form = new FormData()
+    form.append('scene', scene)
+    form.append('file', file)
+    return requestForm<OssCallbackResult>('/uploads', form)
+  },
 }
 
 export type ServicePageParams = {
