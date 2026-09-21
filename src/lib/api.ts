@@ -315,6 +315,8 @@ export const socialApi = {
 }
 
 export const adminApi = {
+  listOrders: (params: { status?: OrderStatus; page?: number; pageSize?: number }) =>
+    request<PageData<Order>>('/admin/orders', { params }),
   shipOrder: (orderId: string, body: ShipOrderRequest) =>
     request<AdminShipmentResult>(`/admin/orders/${orderId}/ship`, { method: 'POST', body }),
   banUser: (userId: string) =>

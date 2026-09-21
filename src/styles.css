@@ -2802,6 +2802,9 @@ button.search-chip span {
 
 .section-title a,
 .section-title button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   margin-left: auto;
   border: none;
   background: none;
@@ -2813,6 +2816,11 @@ button.search-chip span {
 .section-title a:hover,
 .section-title button:hover {
   color: var(--color-primary);
+}
+
+.section-title button:disabled {
+  opacity: 0.55;
+  cursor: default;
 }
 
 .address-picker {
@@ -3102,6 +3110,43 @@ button.search-chip span {
   gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-5);
   border-top: 1px solid var(--color-border-light);
+}
+
+.order-card.selectable {
+  cursor: pointer;
+  border: 1px solid var(--color-border-light);
+}
+
+.order-card.selected {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+.order-card-meta {
+  padding: 0 var(--sp-5) var(--sp-4);
+  color: var(--color-ink-2);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.order-card-meta p + p {
+  margin-top: 4px;
+}
+
+.admin-ship-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.admin-ship-list .load-more-row {
+  margin-top: var(--sp-2);
+}
+
+.checkout-section .empty-state,
+.checkout-section .loading-state {
+  padding: var(--sp-6) var(--sp-4);
 }
 
 /* 状态 pill */

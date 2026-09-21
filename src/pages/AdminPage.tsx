@@ -1,26 +1,41 @@
-import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Headset, Images, PackageCheck, ShieldBan, Truck, X } from 'lucide-react'
-import type { AdminShipmentResult, AdminUserStatusResult, Product } from '../types'
+import { Headset, Images, Package, PackageCheck, RefreshCw, ShieldBan, Truck, X } from 'lucide-react'
+import type { AdminShipmentResult, AdminUserStatusResult, Order, Product } from '../types'
 import { adminApi, productApi } from '../lib/api'
 import { OSS_IMAGE_ACCEPT, uploadImageToOss } from '../lib/ossUpload'
-import { formatDateTime } from '../lib/format'
+import { formatDateTime, formatPrice } from '../lib/format'
+import { productImage } from '../lib/visuals'
 import { Breadcrumb } from '../components/Breadcrumb'
+import { EmptyState } from '../components/EmptyState'
+import { LoadingState } from '../components/LoadingState'
 import { ConfirmModal } from '../components/Modal'
 import { StatusPill } from '../components/StatusPill'
 import { useAuth } from '../state/AuthContext'
 import { useToast } from '../state/ToastContext'
 
 const MAX_PRODUCT_IMAGES = 20
+const SHIP_PAGE_SIZE = 10
+
+function formatShipAddress(order: Order) {
+  const { address } = order
+  return `${address.receiver} ${address.phone} · ${address.province}${address.city}${address.district}${address.detail}`
+}
 
 export function AdminPage() {
   const { toast } = useToast()
   const { user } = useAuth()
 
-  const [shipOrderId, setShipOrderId] = useState('')
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([])
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [orderPage, setOrderPage] = useState(1)
+  const [hasMoreOrders, setHasMoreOrders] = useState(false)
+  const [loadingOrders, setLoadingOrders] = useState(true)
+  const [loadingMoreOrders, setLoadingMoreOrders] = useState(false)
   const [trackingNo, setTrackingNo] = useState('')
   const [shipping, setShipping] = useState(false)
   const [shipment, setShipment] = useState<AdminShipmentResult | null>(null)
+  const trackingInputRef = useRef<HTMLInputElement>(null)
 
   const [banUserId, setBanUserId] = useState('')
   const [banning, setBanning] = useState(false)
@@ -37,21 +52,67 @@ export function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState('')
   const imageInputRef = useRef<HTMLInputElement>(null)
 
+  const loadPendingOrders = useCallback(
+    async (nextPage = 1) => {
+      setLoadingOrders(nextPage === 1)
+      try {
+        const data = await adminApi.listOrders({
+          status: 'pending_shipment',
+          page: nextPage,
+          pageSize: SHIP_PAGE_SIZE,
+        })
+        setPendingOrders((prev) => (nextPage === 1 ? data.list : [...prev, ...data.list]))
+        setOrderPage(data.page)
+        setHasMoreOrders(data.hasMore)
+        if (nextPage === 1) {
+          setSelectedOrder((current) =>
+            current && data.list.some((order) => order.id === current.id) ? current : null,
+          )
+        }
+      } catch (err) {
+        toast(err instanceof Error ? err.message : '待发货订单加载失败', 'error')
+      } finally {
+        setLoadingOrders(false)
+      }
+    },
+    [toast],
+  )
+
+  useEffect(() => {
+    void loadPendingOrders()
+  }, [loadPendingOrders])
+
+  const loadMoreOrders = async () => {
+    if (loadingMoreOrders || !hasMoreOrders) return
+    setLoadingMoreOrders(true)
+    await loadPendingOrders(orderPage + 1)
+    setLoadingMoreOrders(false)
+  }
+
+  const selectOrder = (order: Order) => {
+    setSelectedOrder(order)
+    requestAnimationFrame(() => trackingInputRef.current?.focus())
+  }
+
   const submitShip = async (event: FormEvent) => {
     event.preventDefault()
-    const orderId = shipOrderId.trim()
+    if (!selectedOrder) {
+      toast('请先选择待发货订单', 'error')
+      return
+    }
     const tracking = trackingNo.trim()
-    if (!orderId || !tracking) {
-      toast('请填写订单 ID 和快递单号', 'error')
+    if (!tracking) {
+      toast('请填写快递单号', 'error')
       return
     }
     setShipping(true)
     try {
-      const result = await adminApi.shipOrder(orderId, { trackingNo: tracking })
+      const result = await adminApi.shipOrder(selectedOrder.id, { trackingNo: tracking })
       setShipment(result)
       toast('发货成功')
-      setShipOrderId('')
+      setSelectedOrder(null)
       setTrackingNo('')
+      await loadPendingOrders(1)
     } catch (err) {
       toast(err instanceof Error ? err.message : '发货失败', 'error')
     } finally {
@@ -229,33 +290,110 @@ export function AdminPage() {
             <div className="section-title">
               <Truck size={17} />
               <h2>订单发货</h2>
+              <button type="button" onClick={() => void loadPendingOrders(1)} disabled={loadingOrders}>
+                <RefreshCw size={14} />
+                {loadingOrders ? '刷新中...' : '刷新'}
+              </button>
             </div>
+
+            {loadingOrders && pendingOrders.length === 0 ? (
+              <LoadingState label="正在加载待发货订单" />
+            ) : pendingOrders.length === 0 ? (
+              <EmptyState title="暂无待发货订单" description="支付完成的订单会出现在这里" icon={Package} />
+            ) : (
+              <div className="admin-ship-list">
+                <div className="order-list">
+                  {pendingOrders.map((order) => (
+                    <article
+                      className={`order-card selectable${selectedOrder?.id === order.id ? ' selected' : ''}`}
+                      key={order.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={selectedOrder?.id === order.id}
+                      onClick={() => selectOrder(order)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          selectOrder(order)
+                        }
+                      }}
+                    >
+                      <header className="order-card-head">
+                        <div>
+                          <strong>{order.orderNo}</strong>
+                          <time>付款 {formatDateTime(order.paidAt || order.createdAt)}</time>
+                        </div>
+                        <StatusPill status={order.status} />
+                      </header>
+                      <div className="order-card-body">
+                        <div className="order-card-items">
+                          {order.items.slice(0, 4).map((item) => (
+                            <span
+                              key={item.id || item.productId}
+                              className="order-thumb"
+                              title={`${item.productName} ×${item.quantity}`}
+                            >
+                              <img
+                                src={item.productImage || productImage({ id: item.productId, name: item.productName })}
+                                alt={item.productName}
+                              />
+                            </span>
+                          ))}
+                        </div>
+                        <div className="order-card-total">
+                          <span>共 {order.items.reduce((sum, item) => sum + item.quantity, 0)} 件</span>
+                          <strong>{formatPrice(order.total)}</strong>
+                        </div>
+                      </div>
+                      <div className="order-card-meta">
+                        <p>{order.items.map((item) => `${item.productName} ×${item.quantity}`).join('、')}</p>
+                        <p>{formatShipAddress(order)}</p>
+                        {order.buyerRemark ? <p>备注：{order.buyerRemark}</p> : null}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                <div className="load-more-row">
+                  {hasMoreOrders ? (
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => void loadMoreOrders()}
+                      disabled={loadingMoreOrders}
+                    >
+                      {loadingMoreOrders ? '加载中...' : '加载更多'}
+                    </button>
+                  ) : (
+                    <span className="end-note">已经到底了</span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <form onSubmit={submitShip}>
               <div className="form-grid">
-                <label>
-                  <span>订单 ID</span>
+                <label className="wide-field">
+                  <span>快递单号{selectedOrder ? ` · ${selectedOrder.orderNo}` : ''}</span>
                   <input
-                    value={shipOrderId}
-                    onChange={(event) => setShipOrderId(event.target.value.trim())}
-                    placeholder="待发货订单的 ID"
-                  />
-                </label>
-                <label>
-                  <span>快递单号</span>
-                  <input
+                    ref={trackingInputRef}
                     value={trackingNo}
                     onChange={(event) => setTrackingNo(event.target.value)}
-                    placeholder="发货快递单号"
+                    placeholder={selectedOrder ? '发货快递单号' : '请先选择上方待发货订单'}
                     maxLength={128}
+                    disabled={!selectedOrder || shipping}
                   />
                 </label>
               </div>
               <div className="form-actions">
-                <button type="submit" className="button primary" disabled={shipping}>
+                <button
+                  type="submit"
+                  className="button primary"
+                  disabled={shipping || !selectedOrder}
+                >
                   {shipping ? '发货中...' : '确认发货'}
                 </button>
               </div>
-              <p className="muted-note">仅“待发货”状态的订单可以发货，发货后订单转为“待收货”</p>
+              <p className="muted-note">从上方列表选择订单后填写快递单号。仅待发货订单可以发货，发货后转为待收货。</p>
             </form>
           </section>
 
