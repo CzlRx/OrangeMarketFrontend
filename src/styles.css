@@ -3396,6 +3396,47 @@ button.search-chip span {
   height: 46px;
 }
 
+.payment-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5) 0 var(--sp-4);
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.payment-qr-image {
+  display: block;
+  background: #fff;
+  border-radius: var(--r-md);
+  padding: 10px;
+  box-shadow: 0 0 0 1px var(--color-border-light);
+}
+
+.payment-qr-placeholder {
+  border-radius: var(--r-md);
+  background: var(--color-bg);
+}
+
+.payment-qr-hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-ink-3);
+}
+
+.payment-qr-amount {
+  margin: 0;
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.payment-qr-error {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--color-red);
+}
+
 /* ------------------------------ 23. Profile ---------------------------- */
 .profile-hero {
   background: var(--color-surface);

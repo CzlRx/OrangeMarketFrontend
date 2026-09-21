@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { CheckCircle2, Clock3, CreditCard, XCircle } from 'lucide-react'
-import type { Order, OrderStatus } from '../types'
+import type { Order, OrderStatus, PayOrderResult } from '../types'
 import { orderApi } from '../lib/api'
 import { formatDateTime, formatPrice, ORDER_STATUS_LABELS } from '../lib/format'
 import { LoadingState } from '../components/LoadingState'
 import { EmptyState } from '../components/EmptyState'
 import { Breadcrumb } from '../components/Breadcrumb'
+import { QrCodeImage } from '../components/QrCodeImage'
 import { useToast } from '../state/ToastContext'
 
 const PAID_STATUSES = new Set<OrderStatus>([
@@ -17,6 +18,8 @@ const PAID_STATUSES = new Set<OrderStatus>([
   'refunding',
   'refunded',
 ])
+
+const POLL_INTERVAL_MS = 3000
 
 function useCountdown(target?: string) {
   const [seconds, setSeconds] = useState(0)
@@ -42,19 +45,41 @@ function formatDuration(totalSeconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+function isPaidStatus(status: OrderStatus) {
+  return PAID_STATUSES.has(status)
+}
+
 export function PaymentPage() {
   const { orderId = '' } = useParams()
   const navigate = useNavigate()
   const { toast } = useToast()
   const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
-  const [paying, setPaying] = useState(false)
+  const [payResult, setPayResult] = useState<PayOrderResult | null>(null)
+  const [creatingQr, setCreatingQr] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [mockPaying, setMockPaying] = useState(false)
+  const initiatingRef = useRef(false)
+  const redirectedRef = useRef(false)
+
+  const goToPaidOrder = useCallback(
+    (message = '支付成功') => {
+      if (redirectedRef.current) return
+      redirectedRef.current = true
+      toast(message)
+      navigate(`/orders/${orderId}`, { replace: true })
+    },
+    [navigate, orderId, toast],
+  )
 
   const load = useCallback(async () => {
     try {
-      setOrder(await orderApi.detail(orderId))
+      const latest = await orderApi.detail(orderId)
+      setOrder(latest)
+      return latest
     } catch (err) {
       toast(err instanceof Error ? err.message : '订单加载失败', 'error')
+      return null
     } finally {
       setLoading(false)
     }
@@ -65,36 +90,110 @@ export function PaymentPage() {
   }, [load])
 
   const remaining = useCountdown(order?.paymentExpireAt)
+  const expirePassed = order?.paymentExpireAt
+    ? new Date(order.paymentExpireAt).getTime() <= Date.now()
+    : false
+  const expired = order?.status === 'pending_payment' && expirePassed
+  const canPay = order?.status === 'pending_payment' && !expired
 
-  const pay = async () => {
-    setPaying(true)
+  const createAlipay = useCallback(async () => {
+    if (!orderId || initiatingRef.current) return
+    initiatingRef.current = true
+    setCreatingQr(true)
     try {
-      await orderApi.pay(orderId, { paymentMethod: 'mock' })
-      toast('支付成功')
-      navigate(`/orders/${orderId}`, { replace: true })
+      const result = await orderApi.pay(orderId, { paymentMethod: 'alipay' })
+      setPayResult(result)
+      if (isPaidStatus(result.status)) {
+        goToPaidOrder()
+      }
     } catch (err) {
-      toast(err instanceof Error ? err.message : '支付失败', 'error')
+      toast(err instanceof Error ? err.message : '发起支付宝支付失败', 'error')
+    } finally {
+      initiatingRef.current = false
+      setCreatingQr(false)
+    }
+  }, [goToPaidOrder, orderId, toast])
+
+  useEffect(() => {
+    if (canPay && !payResult?.qrCode) {
+      void createAlipay()
+    }
+  }, [canPay, createAlipay, payResult?.qrCode])
+
+  useEffect(() => {
+    if (!canPay || !payResult?.qrCode) return
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const latest = await orderApi.detail(orderId)
+          setOrder(latest)
+          if (isPaidStatus(latest.status)) {
+            goToPaidOrder()
+          } else if (latest.status === 'cancelled') {
+            setPayResult(null)
+          }
+        } catch {
+          /* 轮询失败时保留当前二维码，由用户手动查单 */
+        }
+      })()
+    }, POLL_INTERVAL_MS)
+    return () => window.clearInterval(timer)
+  }, [canPay, goToPaidOrder, orderId, payResult?.qrCode])
+
+  useEffect(() => {
+    if (expired) {
+      void orderApi.detail(orderId).then(setOrder).catch(() => undefined)
+    }
+  }, [expired, orderId])
+
+  const syncPaid = async () => {
+    setSyncing(true)
+    try {
+      const result = await orderApi.syncPayment(orderId)
+      setPayResult(result)
+      if (isPaidStatus(result.status) || result.paidAt) {
+        goToPaidOrder()
+        return
+      }
+      const latest = await orderApi.detail(orderId)
+      setOrder(latest)
+      if (isPaidStatus(latest.status)) {
+        goToPaidOrder()
+        return
+      }
+      toast('尚未查询到付款，请扫码完成支付后再试', 'error')
+    } catch (err) {
+      toast(err instanceof Error ? err.message : '查单失败', 'error')
       void load()
     } finally {
-      setPaying(false)
+      setSyncing(false)
+    }
+  }
+
+  const payByMock = async () => {
+    setMockPaying(true)
+    try {
+      await orderApi.pay(orderId, { paymentMethod: 'mock' })
+      goToPaidOrder()
+    } catch (err) {
+      toast(err instanceof Error ? err.message : '模拟支付失败', 'error')
+      void load()
+    } finally {
+      setMockPaying(false)
     }
   }
 
   if (loading) return <div className="page"><LoadingState /></div>
   if (!order) return <div className="page"><EmptyState title="订单不存在" /></div>
 
-  const paid = PAID_STATUSES.has(order.status)
+  const paid = isPaidStatus(order.status)
   const cancelled = order.status === 'cancelled'
-  const expirePassed = order.paymentExpireAt
-    ? new Date(order.paymentExpireAt).getTime() <= Date.now()
-    : false
-  const expired = order.status === 'pending_payment' && expirePassed
-  const canPay = order.status === 'pending_payment' && !expired
+  const qrCode = payResult?.qrCode
 
   let statusClass = ''
   let statusIcon = <CreditCard size={34} />
   let statusTitle = `待支付 ${formatPrice(order.total)}`
-  let statusDesc = '使用模拟支付完成付款'
+  let statusDesc = '请使用支付宝扫一扫，完成付款'
 
   if (paid) {
     statusClass = 'success'
@@ -150,16 +249,53 @@ export function PaymentPage() {
           )}
         </div>
 
+        {canPay && (
+          <div className="payment-qr">
+            {creatingQr && !qrCode ? (
+              <p className="payment-qr-hint">正在生成支付宝收款码…</p>
+            ) : qrCode ? (
+              <>
+                <QrCodeImage value={qrCode} />
+                <p className="payment-qr-hint">打开支付宝扫一扫</p>
+                <p className="payment-qr-amount">{formatPrice(order.total)}</p>
+              </>
+            ) : (
+              <p className="payment-qr-hint">收款码生成失败，请点击下方按钮重试</p>
+            )}
+          </div>
+        )}
+
         <div className="payment-actions">
           {canPay ? (
-            <button
-              type="button"
-              className="button primary"
-              onClick={pay}
-              disabled={paying}
-            >
-              {paying ? '支付中...' : '确认支付'}
-            </button>
+            <>
+              <button
+                type="button"
+                className="button primary"
+                onClick={() => void syncPaid()}
+                disabled={syncing || creatingQr || !qrCode}
+              >
+                {syncing ? '查询中...' : '我已完成支付'}
+              </button>
+              {!qrCode && !creatingQr && (
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => void createAlipay()}
+                >
+                  重新获取收款码
+                </button>
+              )}
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  className="button ghost"
+                  onClick={() => void payByMock()}
+                  disabled={mockPaying}
+                >
+                  {mockPaying ? '支付中...' : '模拟支付（仅开发）'}
+                </button>
+              )}
+            </>
           ) : (
             <Link to={`/orders/${order.id}`} className="button primary">
               查看订单

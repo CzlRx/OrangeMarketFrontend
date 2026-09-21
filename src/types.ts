@@ -253,7 +253,10 @@ export interface PayOrderResult {
   orderNo: string
   status: OrderStatus
   paymentMethod: string
-  paidAt: string
+  paidAt?: string
+  qrCode?: string
+  outTradeNo?: string
+  expireAt?: string
 }
 
 export interface FavoriteItem {
@@ -399,7 +402,7 @@ export interface DirectOrderCreateRequest {
 }
 
 export interface PayOrderRequest {
-  paymentMethod: 'mock'
+  paymentMethod: 'alipay' | 'mock'
 }
 
 export interface CancelOrderRequest {

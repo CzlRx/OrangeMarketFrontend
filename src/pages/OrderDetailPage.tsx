@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { MapPin, Truck } from 'lucide-react'
 import type { Order } from '../types'
 import { orderApi } from '../lib/api'
-import { formatDateTime, formatPrice } from '../lib/format'
+import { formatDateTime, formatPrice, paymentMethodLabel } from '../lib/format'
 import { productImage } from '../lib/visuals'
 import { EmptyState } from '../components/EmptyState'
 import { LoadingState } from '../components/LoadingState'
@@ -169,6 +169,12 @@ export function OrderDetailPage() {
             <span>实付</span>
             <strong>{formatPrice(order.total)}</strong>
           </div>
+          {order.paymentMethod && (
+            <div className="summary-line">
+              <span>支付方式</span>
+              <b>{paymentMethodLabel(order.paymentMethod)}</b>
+            </div>
+          )}
           {order.buyerRemark && (
             <div className="order-remark">
               <span>备注</span>

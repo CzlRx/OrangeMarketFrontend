@@ -93,6 +93,13 @@ export const ORDER_STATUS_TABS: { value: OrderStatus | ''; label: string }[] = [
   { value: 'cancelled', label: '已取消' },
 ]
 
+export function paymentMethodLabel(method?: string) {
+  if (!method) return ''
+  if (method === 'alipay') return '支付宝'
+  if (method === 'mock') return '模拟支付'
+  return method
+}
+
 export function maskPhone(phone: string) {
   if (/^\d{11}$/.test(phone)) return `${phone.slice(0, 3)}****${phone.slice(-4)}`
   return phone

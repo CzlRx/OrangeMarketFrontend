@@ -263,6 +263,8 @@ export const orderApi = {
   detail: (orderId: string) => request<Order>(`/orders/${orderId}`),
   pay: (orderId: string, body: PayOrderRequest) =>
     request<PayOrderResult>(`/orders/${orderId}/pay`, { method: 'POST', body }),
+  syncPayment: (orderId: string) =>
+    request<PayOrderResult>(`/orders/${orderId}/payment/sync`, { method: 'POST' }),
   cancel: (orderId: string, body: CancelOrderRequest = {}) =>
     request<unknown>(`/orders/${orderId}/cancel`, { method: 'POST', body }),
   receive: (orderId: string) =>
