@@ -367,6 +367,7 @@ export interface PayOrderResult {
   qrCode?: string
   outTradeNo?: string
   expireAt?: string
+  payUrl?: string
 }
 
 // ===== 收藏 / 足迹 / 搜索历史 =====
@@ -397,7 +398,7 @@ export interface CartMergeRequest { items: CartMergeItemRequest[] }
 export interface CartOrderPreviewRequest { cartItemIds: string[]; addressId: string }
 export interface CartOrderCreateRequest { cartItemIds: string[]; addressId: string; buyerRemark?: string }
 export interface DirectOrderCreateRequest { productId: string; quantity: number; addressId: string; buyerRemark?: string }
-export interface PayOrderRequest { paymentMethod: 'mock' | 'alipay' }
+export interface PayOrderRequest { paymentMethod: 'mock' | 'alipay'; tradeType?: 'qr' | 'wap' }
 export interface CancelOrderRequest { reason?: string }
 export interface FavoriteRequest { productId: string }
 export interface BrowseHistoryRequest { productId: string }
@@ -818,7 +819,7 @@ Query 参数：
 - `paymentMethod` 必须为 `alipay` 或 `mock`（`mock` 仅当服务端 `ALIPAY_ALLOW_MOCK=true`）。
 - 仅 `pending_payment` 可支付，否则 `42200 仅待付款订单可以支付`。
 - 超过 `paymentExpireAt` → `42200 订单支付已超时`。
-- `alipay`：调用当面付预下单，订单仍为 `pending_payment`，返回 `qrCode`。前端展示二维码，轮询订单详情或调用 sync 确认付款。
+- `alipay`：订单仍为 `pending_payment`。`tradeType=qr` 返回 `qrCode`；`tradeType=wap` 返回 `payUrl`。支付页两种方式都可选。轮询订单详情或调用 sync 确认付款。
 - `mock`：同步成功，状态 → `pending_shipment`。支付页仅在开发环境展示该入口。
 
 支付宝预下单响应 `data`（`PayOrderResult`）：

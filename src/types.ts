@@ -257,6 +257,7 @@ export interface PayOrderResult {
   qrCode?: string
   outTradeNo?: string
   expireAt?: string
+  payUrl?: string
 }
 
 export interface FavoriteItem {
@@ -403,6 +404,7 @@ export interface DirectOrderCreateRequest {
 
 export interface PayOrderRequest {
   paymentMethod: 'alipay' | 'mock'
+  tradeType?: 'qr' | 'wap'
 }
 
 export interface CancelOrderRequest {

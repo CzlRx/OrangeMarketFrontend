@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, Clock3, CreditCard, XCircle } from 'lucide-react'
 import type { Order, OrderStatus, PayOrderResult } from '../types'
 import { orderApi } from '../lib/api'
@@ -51,6 +51,7 @@ function isPaidStatus(status: OrderStatus) {
 
 export function PaymentPage() {
   const { orderId = '' } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { toast } = useToast()
   const [order, setOrder] = useState<Order | null>(null)
@@ -61,6 +62,7 @@ export function PaymentPage() {
   const [mockPaying, setMockPaying] = useState(false)
   const initiatingRef = useRef(false)
   const redirectedRef = useRef(false)
+  const returnSyncedRef = useRef(false)
 
   const goToPaidOrder = useCallback(
     (message = '支付成功') => {
@@ -96,12 +98,13 @@ export function PaymentPage() {
   const expired = order?.status === 'pending_payment' && expirePassed
   const canPay = order?.status === 'pending_payment' && !expired
 
-  const createAlipay = useCallback(async () => {
+  const createAlipay = useCallback(async (tradeType: 'qr' | 'wap') => {
     if (!orderId || initiatingRef.current) return
     initiatingRef.current = true
     setCreatingQr(true)
+    setPayResult(null)
     try {
-      const result = await orderApi.pay(orderId, { paymentMethod: 'alipay' })
+      const result = await orderApi.pay(orderId, { paymentMethod: 'alipay', tradeType })
       setPayResult(result)
       if (isPaidStatus(result.status)) {
         goToPaidOrder()
@@ -114,14 +117,16 @@ export function PaymentPage() {
     }
   }, [goToPaidOrder, orderId, toast])
 
-  useEffect(() => {
-    if (canPay && !payResult?.qrCode) {
-      void createAlipay()
-    }
-  }, [canPay, createAlipay, payResult?.qrCode])
+  const checkoutReady = Boolean(payResult?.qrCode || payResult?.payUrl)
 
   useEffect(() => {
-    if (!canPay || !payResult?.qrCode) return
+    if (!canPay || searchParams.get('alipayReturn') !== '1' || returnSyncedRef.current) return
+    returnSyncedRef.current = true
+    void syncPaid(true)
+  }, [canPay, searchParams])
+
+  useEffect(() => {
+    if (!canPay || !checkoutReady) return
     const timer = window.setInterval(() => {
       void (async () => {
         try {
@@ -138,7 +143,7 @@ export function PaymentPage() {
       })()
     }, POLL_INTERVAL_MS)
     return () => window.clearInterval(timer)
-  }, [canPay, goToPaidOrder, orderId, payResult?.qrCode])
+  }, [canPay, checkoutReady, goToPaidOrder, orderId])
 
   useEffect(() => {
     if (expired) {
@@ -146,11 +151,15 @@ export function PaymentPage() {
     }
   }, [expired, orderId])
 
-  const syncPaid = async () => {
+  const syncPaid = async (silent = false) => {
     setSyncing(true)
     try {
       const result = await orderApi.syncPayment(orderId)
-      setPayResult(result)
+      setPayResult((current) => ({
+        ...result,
+        qrCode: result.qrCode || current?.qrCode,
+        payUrl: result.payUrl || current?.payUrl,
+      }))
       if (isPaidStatus(result.status) || result.paidAt) {
         goToPaidOrder()
         return
@@ -161,7 +170,9 @@ export function PaymentPage() {
         goToPaidOrder()
         return
       }
-      toast('尚未查询到付款，请扫码完成支付后再试', 'error')
+      if (!silent) {
+        toast(payResult?.payUrl ? '尚未查询到付款，请在收银台完成支付后再试' : '尚未查询到付款，请扫码完成支付后再试', 'error')
+      }
     } catch (err) {
       toast(err instanceof Error ? err.message : '查单失败', 'error')
       void load()
@@ -189,11 +200,16 @@ export function PaymentPage() {
   const paid = isPaidStatus(order.status)
   const cancelled = order.status === 'cancelled'
   const qrCode = payResult?.qrCode
+  const payUrl = payResult?.payUrl
 
   let statusClass = ''
   let statusIcon = <CreditCard size={34} />
   let statusTitle = `待支付 ${formatPrice(order.total)}`
-  let statusDesc = '请使用支付宝扫一扫，完成付款'
+  let statusDesc = payUrl
+    ? '打开手机网站收银台，使用沙箱买家账号登录并付款'
+    : qrCode
+      ? '请使用支付宝扫一扫，完成付款'
+      : '请选择当面扫码或手机网站支付'
 
   if (paid) {
     statusClass = 'success'
@@ -251,16 +267,31 @@ export function PaymentPage() {
 
         {canPay && (
           <div className="payment-qr">
-            {creatingQr && !qrCode ? (
-              <p className="payment-qr-hint">正在生成支付宝收款码…</p>
+            {creatingQr && !qrCode && !payUrl ? (
+              <p className="payment-qr-hint">正在创建支付宝订单…</p>
             ) : qrCode ? (
               <>
                 <QrCodeImage value={qrCode} />
                 <p className="payment-qr-hint">打开支付宝扫一扫</p>
                 <p className="payment-qr-amount">{formatPrice(order.total)}</p>
               </>
+            ) : payUrl ? (
+              <>
+                <p className="payment-qr-hint">沙箱环境请在收银台使用买家账号付款，不要用日常支付宝扫码。</p>
+                <p className="payment-qr-amount">{formatPrice(order.total)}</p>
+                <a className="button primary" href={payUrl}>
+                  前往支付宝收银台
+                </a>
+              </>
             ) : (
-              <p className="payment-qr-hint">收款码生成失败，请点击下方按钮重试</p>
+              <div className="payment-actions">
+                <button type="button" className="button primary" onClick={() => void createAlipay('qr')} disabled={creatingQr}>
+                  当面扫码支付
+                </button>
+                <button type="button" className="button secondary" onClick={() => void createAlipay('wap')} disabled={creatingQr}>
+                  手机网站支付
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -272,17 +303,18 @@ export function PaymentPage() {
                 type="button"
                 className="button primary"
                 onClick={() => void syncPaid()}
-                disabled={syncing || creatingQr || !qrCode}
+                disabled={syncing || creatingQr || (!qrCode && !payUrl)}
               >
                 {syncing ? '查询中...' : '我已完成支付'}
               </button>
-              {!qrCode && !creatingQr && (
-                <button
-                  type="button"
-                  className="button secondary"
-                  onClick={() => void createAlipay()}
-                >
-                  重新获取收款码
+              {qrCode && (
+                <button type="button" className="button secondary" onClick={() => void createAlipay('wap')} disabled={creatingQr}>
+                  改用手机网站支付
+                </button>
+              )}
+              {payUrl && (
+                <button type="button" className="button secondary" onClick={() => void createAlipay('qr')} disabled={creatingQr}>
+                  改用当面扫码
                 </button>
               )}
               {import.meta.env.DEV && (
