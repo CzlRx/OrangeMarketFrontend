@@ -39,6 +39,19 @@ function useCountdown(target?: string) {
   return seconds
 }
 
+function openPayUrl(payUrl: string, popup: Window | null) {
+  if (popup && !popup.closed) {
+    popup.location.href = payUrl
+    try {
+      popup.opener = null
+    } catch {
+      /* 跳转后部分浏览器不允许断开 opener */
+    }
+    return
+  }
+  window.open(payUrl, '_blank', 'noopener,noreferrer')
+}
+
 function formatDuration(totalSeconds: number) {
   const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
@@ -101,15 +114,22 @@ export function PaymentPage() {
   const createAlipay = useCallback(async (tradeType: 'qr' | 'wap') => {
     if (!orderId || initiatingRef.current) return
     initiatingRef.current = true
+    const popup = tradeType === 'wap' ? window.open('about:blank', '_blank') : null
     setCreatingQr(true)
     setPayResult(null)
     try {
       const result = await orderApi.pay(orderId, { paymentMethod: 'alipay', tradeType })
       setPayResult(result)
+      if (result.payUrl) {
+        openPayUrl(result.payUrl, popup)
+      } else if (popup && !popup.closed) {
+        popup.close()
+      }
       if (isPaidStatus(result.status)) {
         goToPaidOrder()
       }
     } catch (err) {
+      if (popup && !popup.closed) popup.close()
       toast(err instanceof Error ? err.message : '发起支付宝支付失败', 'error')
     } finally {
       initiatingRef.current = false
@@ -279,7 +299,7 @@ export function PaymentPage() {
               <>
                 <p className="payment-qr-hint">沙箱环境请在收银台使用买家账号付款，不要用日常支付宝扫码。</p>
                 <p className="payment-qr-amount">{formatPrice(order.total)}</p>
-                <a className="button primary" href={payUrl}>
+                <a className="button primary" href={payUrl} target="_blank" rel="noopener noreferrer">
                   前往支付宝收银台
                 </a>
               </>
